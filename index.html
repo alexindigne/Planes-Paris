@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Planes París</title>
+<style>
+body{font-family:system-ui,sans-serif;margin:0;background:#f6f6f4;color:#222}
+header{padding:16px;background:#fff;position:sticky;top:0;border-bottom:1px solid #eee}
+h1{font-size:20px;margin:0 0 10px}
+button{border:1px solid #ccc;background:#fff;border-radius:20px;padding:6px 14px;margin-right:6px}
+button.on{background:#222;color:#fff}
+main{padding:12px;display:grid;gap:12px;max-width:600px;margin:auto}
+.card{background:#fff;border-radius:14px;padding:14px;box-shadow:0 1px 3px #0001}
+.card h2{font-size:17px;margin:0 0 6px}
+.p{display:inline-block;font-size:13px;font-weight:600;background:#e6f4ea;color:#1e7a3c;border-radius:10px;padding:2px 8px}
+.l{font-size:14px;color:#666;margin:8px 0 4px}
+.d{font-size:14px;margin:0}
+</style></head><body>
+<header><h1>Planes en París</h1><button id="t" class="on">Todos</button><button id="g">Gratis</button></header>
+<main id="m">Cargando…</main>
+<script>
+const URL_='https://cmtrtvpanfhrbpdztkvn.supabase.co', KEY='sb_publishable_UZAKaPQsCY6pEXo086lXOw_0FyRqEzE';
+const e=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let datos=[];
+async function cargar(){
+ const r=await fetch(URL_+'/rest/v1/planes?select=*&order=creado_en.desc',{headers:{apikey:KEY,Authorization:'Bearer '+KEY}});
+ datos=await r.json(); pintar(false);
+}
+function pintar(soloGratis){
+ const lista=datos.filter(p=>!soloGratis||p.precio.toLowerCase()==='gratis');
+ document.getElementById('m').innerHTML=lista.length?lista.map(p=>`<div class="card"><h2>${e(p.nombre)}</h2><span class="p">${e(p.precio)}</span><div class="l">📍 ${e(p.lugar)}</div><p class="d">${e(p.descripcion)}</p></div>`).join(''):'No hay planes todavía.';
+}
+t.onclick=()=>{t.className='on';g.className='';pintar(false)};
+g.onclick=()=>{g.className='on';t.className='';pintar(true)};
+cargar();
+</script></body></html>
