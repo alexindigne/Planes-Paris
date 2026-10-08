@@ -3,8 +3,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Planes en París</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
 <style>
-:root{--bg:#f6f5f2;--card:#fff;--tx:#1d1d1f;--mu:#6b6b70;--ac:#ff4d2e;--bd:#e6e4df}
+:root{--bg:#f6f5f2;--card:#fff;--tx:#1d1d1f;--mu:#6b6b70;--ac:#ff4d2e;--bd:#e6e4df;--ease:cubic-bezier(.2,.8,.2,1)}
 *{box-sizing:border-box}[hidden]{display:none!important}
 body{font-family:system-ui,-apple-system,sans-serif;margin:0;background:var(--bg);color:var(--tx)}
 header{background:var(--card);position:sticky;top:0;z-index:2000;border-bottom:1px solid var(--bd);padding:12px 16px 6px}
@@ -25,7 +26,8 @@ h1{font-size:20px;margin:0}
 .dia.hoy{font-weight:700;color:var(--ac)}.dia.on{background:var(--ac);color:#fff}.dia:disabled{color:#ccc}
 main{max-width:640px;margin:auto;padding:12px}
 .sec{font-size:16px;margin:18px 4px 10px}.sec small{color:var(--mu);font-weight:400}
-.card{background:var(--card);border-radius:16px;padding:14px;margin-bottom:12px;box-shadow:0 1px 3px #0001;cursor:pointer;scroll-margin-top:170px}
+.card{background:var(--card);border-radius:16px;padding:14px;margin-bottom:12px;box-shadow:0 1px 3px #0001;cursor:pointer;scroll-margin-top:170px;transition:box-shadow .35s var(--ease),transform .35s var(--ease)}
+.card.ab{box-shadow:0 10px 30px #0000001f;transform:translateY(-2px)}
 .top{display:flex;justify-content:space-between;align-items:center}
 .cat{font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--ac);font-weight:600}
 .fav{border:0;background:none;font-size:20px;padding:0}
@@ -35,15 +37,26 @@ main{max-width:640px;margin:auto;padding:12px}
 .p.g{background:#e6f4ea;color:#1e7a3c}
 .l{font-size:14px;color:var(--mu);margin-top:6px}
 .d{font-size:15px;margin:10px 0 12px;line-height:1.4}
-.mas{border-top:1px solid var(--bd);padding-top:12px;margin-bottom:12px}
+/* Animación de apertura y cierre */
+.plega{display:grid;grid-template-rows:1fr;opacity:1;transition:grid-template-rows .45s var(--ease),opacity .35s var(--ease)}
+.plega>div{overflow:hidden;min-height:0}
+.plega.abre{grid-template-rows:0fr;opacity:0}
+.card.ab .plega.abre{grid-template-rows:1fr;opacity:1}
+.card.ab .plega.res{grid-template-rows:0fr;opacity:0}
+.mas{border-top:1px solid var(--bd);padding-top:12px;margin-bottom:12px;transform:translateY(-10px);transition:transform .5s var(--ease)}
+.card.ab .mas{transform:none}
 .det{font-size:15px;line-height:1.5;margin:0 0 10px}
 .fila{display:flex;gap:8px;font-size:14px;margin:6px 0;line-height:1.4}
 .mini{height:180px;border-radius:12px;margin-top:12px;overflow:hidden;cursor:default}
+.llegar{display:inline-block;margin-top:12px}
 .acc{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .btn{border:1px solid var(--bd);background:var(--card);color:var(--tx);border-radius:10px;padding:8px 12px;font-size:14px;text-decoration:none}
 .btn.pri{background:var(--tx);color:#fff;border-color:var(--tx)}
 .btn.link{border:0;margin-left:auto;color:var(--mu);font-size:13px;padding:8px 0}
-.chev{font-size:12px;color:var(--mu);text-align:center;margin-top:10px}
+.chev{display:flex;justify-content:center;align-items:center;gap:6px;font-size:12px;color:var(--mu);margin-top:10px}
+.flecha{display:inline-block;transition:transform .45s var(--ease)}
+.card.ab .flecha{transform:rotate(180deg)}
+.chev .vm{display:none}.card.ab .chev .vm{display:inline}.card.ab .chev .vM{display:none}
 #mapa{height:calc(100vh - 200px);border-radius:16px;overflow:hidden}
 .vacio{text-align:center;color:var(--mu);padding:40px 0}
 .pin{width:16px;height:16px;background:var(--ac);border:3px solid #fff;border-radius:50%;box-shadow:0 1px 4px #0005}
@@ -54,18 +67,21 @@ main{max-width:640px;margin:auto;padding:12px}
 .leaflet-bar{border:0!important;box-shadow:0 1px 4px #0002!important;border-radius:8px!important;overflow:hidden}
 .leaflet-bar a{border:0!important;color:var(--tx)!important}
 .leaflet-control-attribution{font-size:9px!important;background:#fffa!important}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
 </style></head><body>
 <header><div id="hd" class="hd"></div><div id="filtros"></div><div id="cal" hidden></div></header>
 <main><div id="lista"></div><div id="mapa" hidden></div></main>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="https://unpkg.com/@maplibre/maplibre-gl-leaflet@0.1.4/leaflet-maplibre-gl.js"></script>
 <script>
 const NOMBRE='Planes en París'; // cambia aquí el nombre de la web
 const URL_='https://cmtrtvpanfhrbpdztkvn.supabase.co', KEY='sb_publishable_UZAKaPQsCY6pEXo086lXOw_0FyRqEzE';
 const CATS=['música','expo','pop-up','mercado','festival','cine','aire libre','otro'];
 const T={
- es:{loc:'es-ES',lista:'☰ Lista',mapa:'🗺️ Mapa',fechas:'📅 Fechas',dia:'día',dias:'días',gratis:'Solo gratis',guardados:'❤️ Guardados',ahora:'⚡ Ahora o nunca',cuando:'🌿 Cuando quieras',vacio:'No hay planes con estos filtros.',error:'No se pudieron cargar los planes.',cargando:'Cargando…',info:'Más info',compartir:'Compartir',reportar:'Reportar',hoy:'Hoy',finde:'Este finde',borrar:'Borrar fechas',hasta:'Hasta el ',free:'Gratis',preg:'¿Qué falla en este plan? (cancelado, fecha o precio mal…)',gracias:'¡Gracias! Lo revisaremos.',noenv:'No se pudo enviar, inténtalo más tarde.',mas:'Ver más ▾',menos:'Ver menos ▴',llegar:'Cómo llegar',org:'Organiza: ',del:'Del ',al:' al ',ver:'Ver plan',dn:['L','M','X','J','V','S','D'],cats:{'música':'Música','expo':'Expo','pop-up':'Pop-up','mercado':'Mercado','festival':'Festival','cine':'Cine','aire libre':'Aire libre','otro':'Otro'}},
- fr:{loc:'fr-FR',lista:'☰ Liste',mapa:'🗺️ Carte',fechas:'📅 Dates',dia:'jour',dias:'jours',gratis:'Gratuit seulement',guardados:'❤️ Favoris',ahora:'⚡ Maintenant ou jamais',cuando:'🌿 Quand tu veux',vacio:'Aucun plan avec ces filtres.',error:'Impossible de charger les plans.',cargando:'Chargement…',info:"Plus d'infos",compartir:'Partager',reportar:'Signaler',hoy:"Aujourd'hui",finde:'Ce week-end',borrar:'Effacer les dates',hasta:"Jusqu'au ",free:'Gratuit',preg:'Quel est le problème ? (annulé, mauvaise date ou mauvais prix…)',gracias:'Merci ! On va vérifier.',noenv:'Envoi impossible, réessaie plus tard.',mas:'Voir plus ▾',menos:'Voir moins ▴',llegar:'Itinéraire',org:'Organisé par ',del:'Du ',al:' au ',ver:'Voir le plan',dn:['L','M','M','J','V','S','D'],cats:{'música':'Musique','expo':'Expo','pop-up':'Pop-up','mercado':'Marché','festival':'Festival','cine':'Cinéma','aire libre':'Plein air','otro':'Autre'}},
- en:{loc:'en-GB',lista:'☰ List',mapa:'🗺️ Map',fechas:'📅 Dates',dia:'day',dias:'days',gratis:'Free only',guardados:'❤️ Saved',ahora:'⚡ Now or never',cuando:'🌿 Anytime',vacio:'No plans match these filters.',error:"Couldn't load the plans.",cargando:'Loading…',info:'More info',compartir:'Share',reportar:'Report',hoy:'Today',finde:'This weekend',borrar:'Clear dates',hasta:'Until ',free:'Free',preg:"What's wrong with this plan? (cancelled, wrong date or price…)",gracias:"Thanks! We'll check it.",noenv:"Couldn't send, try again later.",mas:'See more ▾',menos:'See less ▴',llegar:'Directions',org:'By ',del:'From ',al:' to ',ver:'See plan',dn:['M','T','W','T','F','S','S'],cats:{'música':'Music','expo':'Exhibition','pop-up':'Pop-up','mercado':'Market','festival':'Festival','cine':'Cinema','aire libre':'Outdoors','otro':'Other'}}
+ es:{loc:'es-ES',lista:'☰ Lista',mapa:'🗺️ Mapa',fechas:'📅 Fechas',dia:'día',dias:'días',gratis:'Solo gratis',guardados:'❤️ Guardados',ahora:'⚡ Ahora o nunca',cuando:'🌿 Cuando quieras',vacio:'No hay planes con estos filtros.',error:'No se pudieron cargar los planes.',cargando:'Cargando…',info:'Más info',compartir:'Compartir',reportar:'Reportar',hoy:'Hoy',finde:'Este finde',borrar:'Borrar fechas',hasta:'Hasta el ',free:'Gratis',preg:'¿Qué falla en este plan? (cancelado, fecha o precio mal…)',gracias:'¡Gracias! Lo revisaremos.',noenv:'No se pudo enviar, inténtalo más tarde.',mas:'Ver más',menos:'Ver menos',llegar:'Cómo llegar',org:'Organiza: ',del:'Del ',al:' al ',ver:'Ver plan',dn:['L','M','X','J','V','S','D'],cats:{'música':'Música','expo':'Expo','pop-up':'Pop-up','mercado':'Mercado','festival':'Festival','cine':'Cine','aire libre':'Aire libre','otro':'Otro'}},
+ fr:{loc:'fr-FR',lista:'☰ Liste',mapa:'🗺️ Carte',fechas:'📅 Dates',dia:'jour',dias:'jours',gratis:'Gratuit seulement',guardados:'❤️ Favoris',ahora:'⚡ Maintenant ou jamais',cuando:'🌿 Quand tu veux',vacio:'Aucun plan avec ces filtres.',error:'Impossible de charger les plans.',cargando:'Chargement…',info:"Plus d'infos",compartir:'Partager',reportar:'Signaler',hoy:"Aujourd'hui",finde:'Ce week-end',borrar:'Effacer les dates',hasta:"Jusqu'au ",free:'Gratuit',preg:'Quel est le problème ? (annulé, mauvaise date ou mauvais prix…)',gracias:'Merci ! On va vérifier.',noenv:'Envoi impossible, réessaie plus tard.',mas:'Voir plus',menos:'Voir moins',llegar:'Itinéraire',org:'Organisé par ',del:'Du ',al:' au ',ver:'Voir le plan',dn:['L','M','M','J','V','S','D'],cats:{'música':'Musique','expo':'Expo','pop-up':'Pop-up','mercado':'Marché','festival':'Festival','cine':'Cinéma','aire libre':'Plein air','otro':'Autre'}},
+ en:{loc:'en-GB',lista:'☰ List',mapa:'🗺️ Map',fechas:'📅 Dates',dia:'day',dias:'days',gratis:'Free only',guardados:'❤️ Saved',ahora:'⚡ Now or never',cuando:'🌿 Anytime',vacio:'No plans match these filters.',error:"Couldn't load the plans.",cargando:'Loading…',info:'More info',compartir:'Share',reportar:'Report',hoy:'Today',finde:'This weekend',borrar:'Clear dates',hasta:'Until ',free:'Free',preg:"What's wrong with this plan? (cancelled, wrong date or price…)",gracias:"Thanks! We'll check it.",noenv:"Couldn't send, try again later.",mas:'See more',menos:'See less',llegar:'Directions',org:'By ',del:'From ',al:' to ',ver:'See plan',dn:['M','T','W','T','F','S','S'],cats:{'música':'Music','expo':'Exhibition','pop-up':'Pop-up','mercado':'Market','festival':'Festival','cine':'Cinema','aire libre':'Outdoors','otro':'Other'}}
 };
 let LANG='es';
 try{LANG=localStorage.getItem('lang')||(navigator.language||'es').slice(0,2)}catch(_){}
@@ -104,33 +120,36 @@ function fechasLargas(p){
  if(!i)return t('hasta')+completa(f);
  return t('del')+completa(i)+t('al')+completa(f);
 }
-// Mapa minimalista
-const base=m=>L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{maxZoom:19,subdomains:'abcd',attribution:'© OpenStreetMap © CARTO'}).addTo(m);
+// Mapa minimalista (OpenFreeMap, sin clave)
+const base=m=>L.maplibreGL({style:'https://tiles.openfreemap.org/styles/positron',attribution:'<a href="https://openfreemap.org" target="_blank">OpenFreeMap</a> © <a href="https://www.openmaptiles.org/" target="_blank">OpenMapTiles</a> © <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>'}).addTo(m);
 const PIN=L.divIcon({className:'',html:'<div class="pin"></div>',iconSize:[22,22],iconAnchor:[11,11],popupAnchor:[0,-12]});
 function filtrar(){
  return st.datos.filter(p=>(!st.gratis||esGratis(p))&&(!st.cat||p.categoria===st.cat)&&(!st.fav||favs.has(p.id))&&(!st.dias.size||[...st.dias].some(d=>enDia(p,d))))
   .sort((a,b)=>proxima(a).localeCompare(proxima(b))||(a.fecha_fin||'').localeCompare(b.fecha_fin||''));
 }
 function tarjeta(p){
- const ab=abierto===p.id,url=urlOk(p),fe=fechas(p),fl=fechasLargas(p),nom=tx(p,'nombre'),hor=tx(p,'horario'),det=tx(p,'detalle');
+ const url=urlOk(p),fe=fechas(p),fl=fechasLargas(p),nom=tx(p,'nombre'),hor=tx(p,'horario'),det=tx(p,'detalle');
  const org=p.organizador&&p.organizador!=='Que faire à Paris'?p.organizador:'';
  const txt=nom+' · '+p.lugar+(url?' '+url:'');
  const llegar='https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(p.lugar);
- return `<article class="card" data-id="${p.id}"><div class="top"><span class="cat">${e(t('cats')[p.categoria]||'')}</span><button class="fav" data-fav="${p.id}">${favs.has(p.id)?'❤️':'🤍'}</button></div>
+ return `<article class="card${abierto===p.id?' ab':''}" data-id="${p.id}">
+ <div class="top"><span class="cat">${e(t('cats')[p.categoria]||'')}</span><button class="fav" data-fav="${p.id}">${favs.has(p.id)?'❤️':'🤍'}</button></div>
  <h2>${e(nom)}</h2><div class="meta"><span class="p${esGratis(p)?' g':''}">${e(precioTx(p))}</span>${fe?`<span>📅 ${e(fe)}</span>`:''}</div>
- ${ab?'':`${hor?`<div class="l">🕐 ${e(hor)}</div>`:''}<div class="l">📍 ${e(p.lugar)}</div>`}
+ <div class="plega res"><div>${hor?`<div class="l">🕐 ${e(hor)}</div>`:''}<div class="l">📍 ${e(p.lugar)}</div></div></div>
  <p class="d">${e(tx(p,'descripcion'))}</p>
- ${ab?`<div class="mas">${det?`<p class="det">${e(det)}</p>`:''}
+ <div class="plega abre"><div><div class="mas">
+  ${det?`<p class="det">${e(det)}</p>`:''}
   ${fl?`<div class="fila"><span>📅</span><span>${e(fl)}</span></div>`:''}
   ${hor?`<div class="fila"><span>🕐</span><span>${e(hor)}</span></div>`:''}
   <div class="fila"><span>📍</span><span>${e(p.lugar)}</span></div>
   ${org?`<div class="fila"><span>👤</span><span>${e(t('org')+org)}</span></div>`:''}
-  ${p.lat!=null&&p.lon!=null?`<div class="mini" id="mini-${p.id}"></div>`:''}</div>`:''}
+  ${p.lat!=null&&p.lon!=null?`<div class="mini" id="mini-${p.id}"></div>`:''}
+  <a class="btn llegar" href="${e(llegar)}" target="_blank" rel="noopener">🧭 ${t('llegar')}</a>
+ </div></div></div>
  <div class="acc">${url?`<a class="btn pri" href="${e(url)}" target="_blank" rel="noopener">${t('info')}</a>`:''}
- ${ab?`<a class="btn" href="${e(llegar)}" target="_blank" rel="noopener">${t('llegar')}</a>`:''}
  <a class="btn" href="https://wa.me/?text=${encodeURIComponent(txt)}" target="_blank" rel="noopener">${t('compartir')}</a>
  <button class="btn link" data-rep="${p.id}">${t('reportar')}</button></div>
- <div class="chev">${ab?t('menos'):t('mas')}</div></article>`;
+ <div class="chev"><span class="vM">${t('mas')}</span><span class="vm">${t('menos')}</span><span class="flecha">▾</span></div></article>`;
 }
 function pintarFiltros(){
  const n=st.dias.size;
@@ -173,7 +192,17 @@ function montarMini(){
  mini=L.map(el,{zoomControl:false,dragging:false,scrollWheelZoom:false,doubleClickZoom:false,touchZoom:false,boxZoom:false,keyboard:false}).setView([p.lat,p.lon],15);
  base(mini);L.marker([p.lat,p.lon],{icon:PIN}).addTo(mini);
 }
-function irA(id){requestAnimationFrame(()=>{const c=document.querySelector(`.card[data-id="${id}"]`);if(c)c.scrollIntoView({behavior:'smooth',block:'start'})})}
+function soltarMini(){const m=mini;mini=null;if(m)setTimeout(()=>m.remove(),500)}
+const tarjetaDe=id=>document.querySelector(`.card[data-id="${id}"]`);
+function irA(id,donde){requestAnimationFrame(()=>{const c=tarjetaDe(id);if(c)c.scrollIntoView({behavior:'smooth',block:donde||'nearest'})})}
+// Abre o cierra una tarjeta con animación, sin redibujar la lista
+function abrir(id){
+ if(abierto!=null){const c=tarjetaDe(abierto);if(c)c.classList.remove('ab');soltarMini()}
+ if(abierto===id){abierto=null;return}
+ abierto=id;const c=tarjetaDe(id);if(!c)return;
+ c.classList.add('ab');montarMini();
+ setTimeout(()=>{if(mini)mini.invalidateSize();irA(id)},460);
+}
 function pintar(){
  pintarFiltros();
  $('lista').hidden=st.vista==='mapa';$('mapa').hidden=st.vista!=='mapa';
@@ -195,13 +224,13 @@ document.addEventListener('click',ev=>{
  if(!b){
   if(ev.target.closest('a,.mini'))return;
   const c=ev.target.closest('.card');
-  if(c){const id=+c.dataset.id;abierto=abierto===id?null:id;pintar();if(abierto!=null)irA(id)}
+  if(c)abrir(+c.dataset.id);
   return;
  }
  const ds=b.dataset;
  if(ds.lang){LANG=ds.lang;try{localStorage.setItem('lang',LANG)}catch(_){};document.documentElement.lang=LANG;pintar()}
- else if(ds.ver){st.vista='lista';abierto=+ds.ver;if(mapa)mapa.closePopup();pintar();irA(abierto)}
- else if(ds.fav){const id=+ds.fav;favs.has(id)?favs.delete(id):favs.add(id);guardarFavs();pintar()}
+ else if(ds.ver){st.vista='lista';abierto=+ds.ver;if(mapa)mapa.closePopup();pintar();irA(abierto,'start')}
+ else if(ds.fav){const id=+ds.fav;favs.has(id)?favs.delete(id):favs.add(id);guardarFavs();b.textContent=favs.has(id)?'❤️':'🤍';if(st.fav)pintar()}
  else if(ds.rep)reportar(+ds.rep);
  else if(ds.vista){st.vista=ds.vista;pintar()}
  else if('cat' in ds){st.cat=st.cat===ds.cat?null:ds.cat;pintar()}
