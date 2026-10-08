@@ -29,7 +29,7 @@ const enParis = e => {
 const trad = x => x && typeof x === 'object' ? {
   nombre: limpia(x.nombre).slice(0, 80),
   descripcion: limpia(x.descripcion).slice(0, 200),
-  detalle: limpia(x.detalle).slice(0, 700),
+  detalle: limpia(x.detalle).slice(0, 1200),
   horario: x.horario ? limpia(x.horario).slice(0, 80) : null,
   precio: limpia(x.precio).slice(0, 30)
 } : null;
@@ -60,8 +60,8 @@ Para cada evento decide "keep": true solo si encaja y suena a plan apetecible. P
 Si keep es false, devuelve solo "id" y "keep".
 Si keep es true escribe:
 - "nombre": el nombre correcto y limpio del evento en español (sin MAYÚSCULAS innecesarias, sin fechas ni precios, máximo 60 caracteres, respeta los nombres propios).
-- "descripcion": una frase en español, máximo 140 caracteres, que enganche y diga qué vas a ver o vivir. No inventes datos que no estén en el texto.
-- "detalle": de 2 a 4 frases en español (máximo 500 caracteres) que expliquen qué es, qué vas a encontrar y por qué merece la pena. Solo con datos del texto, escrito con tus palabras.
+- "descripcion": una frase gancho en español, máximo 140 caracteres, que diga qué vas a ver o vivir.
+- "detalle": un texto de 4 a 7 frases en español (máximo 900 caracteres), muy útil para quien piensa ir: de qué va el plan, qué vas a ver o vivir, lo más interesante o especial, y consejos prácticos SOLO si aparecen en el texto (si hay que reservar, cuánto dura, mejor momento para ir, para quién es ideal). Tono cercano y claro, con tus palabras. No inventes nada.
 - "categoria": una de ${CATEGORIAS.join(', ')}.
 - "horario": una línea corta (máximo 60 caracteres) con los horarios SOLO si aparecen en el texto, por ejemplo "Mar-dom 10h-18h"; si no hay datos, null.
 - "precio": "Gratis", o el precio más barato, por ejemplo "5 €" o "Desde 8 €".
@@ -76,7 +76,7 @@ async function curar(lote) {
     headers: { 'x-api-key': A, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
     body: JSON.stringify({
       model: 'claude-haiku-5-5',
-      max_tokens: 16000,
+      max_tokens: 20000,
       system: PROMPT,
       messages: [{ role: 'user', content: JSON.stringify(lote) }]
     })
@@ -124,12 +124,12 @@ async function main() {
   console.log(`Candidatos nuevos (hasta el ${limite}):`, lista.length);
 
   const planes = [], desc = [];
-  for (let i = 0; i < lista.length; i += 8) {
-    const trozo = lista.slice(i, i + 8);
+  for (let i = 0; i < lista.length; i += 6) {
+    const trozo = lista.slice(i, i + 6);
     const datos = trozo.map(([id, e]) => ({
       id,
       titulo: limpia(e.title),
-      texto: limpia(e.description || e.lead_text).slice(0, 1500),
+      texto: limpia(e.description || e.lead_text).slice(0, 1800),
       tags: e.tags || null,
       lugar: limpia(e.address_name),
       precio_texto: e.price_type === 'gratuit' ? 'gratuit' : limpia(e.price_detail).slice(0, 200),
@@ -159,7 +159,7 @@ async function main() {
         precio,
         lugar: limpia([e.address_name, e.address_street, e.address_zipcode].filter(Boolean).join(', ')) || 'París',
         descripcion: limpia(d.descripcion),
-        detalle: d.detalle ? limpia(d.detalle).slice(0, 700) : null,
+        detalle: d.detalle ? limpia(d.detalle).slice(0, 1200) : null,
         organizador: 'Que faire à Paris',
         fecha_inicio: ini,
         fecha_fin: fin,
