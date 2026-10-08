@@ -1,8 +1,8 @@
 name: Importar planes
 on:
   schedule:
-    - cron: '0 5 * * *'
-  workflow_dispatch:
+    - cron: '0 5 * * 1,4'   # lunes y jueves, 6-7 h de París
+  workflow_dispatch:         # botón para ejecutarlo a mano
 jobs:
   importar:
     runs-on: ubuntu-latest
