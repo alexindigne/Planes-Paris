@@ -1,35 +1,167 @@
 <!DOCTYPE html>
 <html lang="es"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Planes París</title>
+<title>Planes en París</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
-body{font-family:system-ui,sans-serif;margin:0;background:#f6f6f4;color:#222}
-header{padding:16px;background:#fff;position:sticky;top:0;border-bottom:1px solid #eee}
-h1{font-size:20px;margin:0 0 10px}
-button{border:1px solid #ccc;background:#fff;border-radius:20px;padding:6px 14px;margin-right:6px}
-button.on{background:#222;color:#fff}
-main{padding:12px;display:grid;gap:12px;max-width:600px;margin:auto}
-.card{background:#fff;border-radius:14px;padding:14px;box-shadow:0 1px 3px #0001}
-.card h2{font-size:17px;margin:0 0 6px}
-.p{display:inline-block;font-size:13px;font-weight:600;background:#e6f4ea;color:#1e7a3c;border-radius:10px;padding:2px 8px}
-.l{font-size:14px;color:#666;margin:8px 0 4px}
-.d{font-size:14px;margin:0}
+:root{--bg:#f6f5f2;--card:#fff;--tx:#1d1d1f;--mu:#6b6b70;--ac:#ff4d2e;--bd:#e6e4df}
+*{box-sizing:border-box}[hidden]{display:none!important}
+body{font-family:system-ui,-apple-system,sans-serif;margin:0;background:var(--bg);color:var(--tx)}
+header{background:var(--card);position:sticky;top:0;z-index:2000;border-bottom:1px solid var(--bd);padding:12px 16px 6px}
+.hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+h1{font-size:20px;margin:0}
+.lang{display:flex;gap:4px}
+.lang button{border:1px solid var(--bd);background:var(--card);color:var(--mu);border-radius:8px;padding:4px 8px;font-size:12px;font-weight:600}
+.lang button.on{background:var(--tx);color:#fff;border-color:var(--tx)}
+.row{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;scrollbar-width:none}.row::-webkit-scrollbar{display:none}
+.chip{flex:none;border:1px solid var(--bd);background:var(--card);color:var(--tx);border-radius:20px;padding:6px 12px;font-size:14px}
+.chip.on{background:var(--tx);color:#fff;border-color:var(--tx)}
+#cal{padding:6px 0}
+.cal-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;text-transform:capitalize}
+.cal-h button{border:0;background:none;font-size:22px;padding:0 10px;color:var(--tx)}
+.cal-g{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center}
+.dn{font-size:12px;color:var(--mu)}
+.dia{border:0;background:none;border-radius:50%;aspect-ratio:1;font-size:14px;color:var(--tx)}
+.dia.hoy{font-weight:700;color:var(--ac)}.dia.on{background:var(--ac);color:#fff}.dia:disabled{color:#ccc}
+main{max-width:640px;margin:auto;padding:12px}
+.sec{font-size:16px;margin:18px 4px 10px}.sec small{color:var(--mu);font-weight:400}
+.card{background:var(--card);border-radius:16px;padding:14px;margin-bottom:12px;box-shadow:0 1px 3px #0001}
+.top{display:flex;justify-content:space-between;align-items:center}
+.cat{font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:var(--ac);font-weight:600}
+.fav{border:0;background:none;font-size:20px;padding:0}
+.card h2{font-size:18px;margin:4px 0 8px}
+.meta{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:14px;color:var(--mu)}
+.p{font-size:13px;font-weight:600;background:#f1efe9;color:var(--tx);border-radius:10px;padding:2px 8px}
+.p.g{background:#e6f4ea;color:#1e7a3c}
+.l{font-size:14px;color:var(--mu);margin-top:6px}
+.d{font-size:15px;margin:10px 0 12px;line-height:1.4}
+.acc{display:flex;gap:8px;align-items:center}
+.btn{border:1px solid var(--bd);background:var(--card);color:var(--tx);border-radius:10px;padding:8px 12px;font-size:14px;text-decoration:none}
+.btn.pri{background:var(--tx);color:#fff;border-color:var(--tx)}
+.btn.link{border:0;margin-left:auto;color:var(--mu);font-size:13px;padding:8px 0}
+#mapa{height:calc(100vh - 200px);border-radius:16px}
+.vacio{text-align:center;color:var(--mu);padding:40px 0}
 </style></head><body>
-<header><h1>Planes en París</h1><button id="t" class="on">Todos</button><button id="g">Gratis</button></header>
-<main id="m">Cargando…</main>
+<header><div id="hd" class="hd"></div><div id="filtros"></div><div id="cal" hidden></div></header>
+<main><div id="lista"></div><div id="mapa" hidden></div></main>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
+const NOMBRE='Planes en París'; // cambia aquí el nombre de la web
 const URL_='https://cmtrtvpanfhrbpdztkvn.supabase.co', KEY='sb_publishable_UZAKaPQsCY6pEXo086lXOw_0FyRqEzE';
-const e=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-let datos=[];
+const CATS=['música','expo','pop-up','mercado','festival','cine','aire libre','otro'];
+const T={
+ es:{loc:'es-ES',lista:'☰ Lista',mapa:'🗺️ Mapa',fechas:'📅 Fechas',dia:'día',dias:'días',gratis:'Solo gratis',guardados:'❤️ Guardados',ahora:'⚡ Ahora o nunca',cuando:'🌿 Cuando quieras',vacio:'No hay planes con estos filtros.',error:'No se pudieron cargar los planes.',cargando:'Cargando…',info:'Más info',compartir:'Compartir',reportar:'Reportar',hoy:'Hoy',finde:'Este finde',borrar:'Borrar fechas',hasta:'Hasta el ',free:'Gratis',preg:'¿Qué falla en este plan? (cancelado, fecha o precio mal…)',gracias:'¡Gracias! Lo revisaremos.',noenv:'No se pudo enviar, inténtalo más tarde.',dn:['L','M','X','J','V','S','D'],cats:{'música':'Música','expo':'Expo','pop-up':'Pop-up','mercado':'Mercado','festival':'Festival','cine':'Cine','aire libre':'Aire libre','otro':'Otro'}},
+ fr:{loc:'fr-FR',lista:'☰ Liste',mapa:'🗺️ Carte',fechas:'📅 Dates',dia:'jour',dias:'jours',gratis:'Gratuit seulement',guardados:'❤️ Favoris',ahora:'⚡ Maintenant ou jamais',cuando:'🌿 Quand tu veux',vacio:'Aucun plan avec ces filtres.',error:'Impossible de charger les plans.',cargando:'Chargement…',info:"Plus d'infos",compartir:'Partager',reportar:'Signaler',hoy:"Aujourd'hui",finde:'Ce week-end',borrar:'Effacer les dates',hasta:"Jusqu'au ",free:'Gratuit',preg:'Quel est le problème ? (annulé, mauvaise date ou mauvais prix…)',gracias:'Merci ! On va vérifier.',noenv:'Envoi impossible, réessaie plus tard.',dn:['L','M','M','J','V','S','D'],cats:{'música':'Musique','expo':'Expo','pop-up':'Pop-up','mercado':'Marché','festival':'Festival','cine':'Cinéma','aire libre':'Plein air','otro':'Autre'}},
+ en:{loc:'en-GB',lista:'☰ List',mapa:'🗺️ Map',fechas:'📅 Dates',dia:'day',dias:'days',gratis:'Free only',guardados:'❤️ Saved',ahora:'⚡ Now or never',cuando:'🌿 Anytime',vacio:'No plans match these filters.',error:"Couldn't load the plans.",cargando:'Loading…',info:'More info',compartir:'Share',reportar:'Report',hoy:'Today',finde:'This weekend',borrar:'Clear dates',hasta:'Until ',free:'Free',preg:"What's wrong with this plan? (cancelled, wrong date or price…)",gracias:"Thanks! We'll check it.",noenv:"Couldn't send, try again later.",dn:['M','T','W','T','F','S','S'],cats:{'música':'Music','expo':'Exhibition','pop-up':'Pop-up','mercado':'Market','festival':'Festival','cine':'Cinema','aire libre':'Outdoors','otro':'Other'}}
+};
+let LANG='es';
+try{LANG=localStorage.getItem('lang')||(navigator.language||'es').slice(0,2)}catch(_){}
+if(!T[LANG])LANG='es';
+const t=k=>T[LANG][k];
+const $=id=>document.getElementById(id);
+const e=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+const parse=s=>{const[y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d)};
+const HOY=iso(new Date());
+const st={datos:[],cargado:false,gratis:false,cat:null,dias:new Set(),fav:false,vista:'lista',mes:new Date(new Date().getFullYear(),new Date().getMonth(),1)};
+let calAbierto=false,favs=new Set();
+try{favs=new Set(JSON.parse(localStorage.getItem('favs')||'[]'))}catch(_){}
+const guardarFavs=()=>{try{localStorage.setItem('favs',JSON.stringify([...favs]))}catch(_){}};
+const tx=(p,k)=>(LANG!=='es'&&p.i18n&&p.i18n[LANG]&&p.i18n[LANG][k])||p[k];
+const esGratis=p=>/gratis/i.test(p.precio||'');
+const precioTx=p=>esGratis(p)?t('free'):tx(p,'precio');
+const urlOk=p=>/^https:\/\//i.test(p.url_fuente||'')?p.url_fuente:null;
+const proxima=p=>(!p.fecha_inicio||p.fecha_inicio<HOY)?HOY:p.fecha_inicio;
+const enDia=(p,d)=>d>=(p.fecha_inicio||'0000-00-00')&&d<=(p.fecha_fin||p.fecha_inicio||'9999-12-31');
+const corta=s=>parse(s).toLocaleDateString(t('loc'),{day:'numeric',month:'short'});
+const larga=s=>parse(s).toLocaleDateString(t('loc'),{weekday:'short',day:'numeric',month:'short'});
+function fechas(p){
+ const i=p.fecha_inicio,f=p.fecha_fin;
+ if(!i&&!f)return '';
+ if(!f||i===f)return larga(i||f);
+ if(!i||p.tipo==='largo')return t('hasta')+corta(f);
+ return larga(i)+' – '+larga(f);
+}
+function filtrar(){
+ return st.datos.filter(p=>(!st.gratis||esGratis(p))&&(!st.cat||p.categoria===st.cat)&&(!st.fav||favs.has(p.id))&&(!st.dias.size||[...st.dias].some(d=>enDia(p,d))))
+  .sort((a,b)=>proxima(a).localeCompare(proxima(b))||(a.fecha_fin||'').localeCompare(b.fecha_fin||''));
+}
+function tarjeta(p){
+ const url=urlOk(p),fe=fechas(p),nom=tx(p,'nombre'),hor=tx(p,'horario'),txt=nom+' · '+p.lugar+(url?' '+url:'');
+ return `<article class="card"><div class="top"><span class="cat">${e(t('cats')[p.categoria]||'')}</span><button class="fav" data-fav="${p.id}">${favs.has(p.id)?'❤️':'🤍'}</button></div>
+ <h2>${e(nom)}</h2><div class="meta"><span class="p${esGratis(p)?' g':''}">${e(precioTx(p))}</span>${fe?`<span>📅 ${e(fe)}</span>`:''}</div>
+ ${hor?`<div class="l">🕐 ${e(hor)}</div>`:''}<div class="l">📍 ${e(p.lugar)}</div><p class="d">${e(tx(p,'descripcion'))}</p>
+ <div class="acc">${url?`<a class="btn pri" href="${e(url)}" target="_blank" rel="noopener">${t('info')}</a>`:''}
+ <a class="btn" href="https://wa.me/?text=${encodeURIComponent(txt)}" target="_blank" rel="noopener">${t('compartir')}</a>
+ <button class="btn link" data-rep="${p.id}">${t('reportar')}</button></div></article>`;
+}
+function pintarFiltros(){
+ const n=st.dias.size;
+ $('hd').innerHTML=`<h1>${e(NOMBRE)}</h1><div class="lang">${['es','fr','en'].map(l=>`<button data-lang="${l}" class="${l===LANG?'on':''}">${l.toUpperCase()}</button>`).join('')}</div>`;
+ $('filtros').innerHTML=`<div class="row">
+ <button class="chip${st.vista==='lista'?' on':''}" data-vista="lista">${t('lista')}</button>
+ <button class="chip${st.vista==='mapa'?' on':''}" data-vista="mapa">${t('mapa')}</button>
+ <button class="chip${calAbierto||n?' on':''}" data-t="cal">${n?'📅 '+n+' '+(n>1?t('dias'):t('dia')):t('fechas')}</button>
+ <button class="chip${st.gratis?' on':''}" data-t="gratis">${t('gratis')}</button>
+ <button class="chip${st.fav?' on':''}" data-t="fav">${t('guardados')}</button></div>
+ <div class="row">${CATS.map(c=>`<button class="chip${st.cat===c?' on':''}" data-cat="${c}">${t('cats')[c]}</button>`).join('')}</div>`;
+ $('cal').hidden=!calAbierto;if(calAbierto)pintarCal();
+}
+function pintarCal(){
+ const y=st.mes.getFullYear(),mo=st.mes.getMonth(),prim=(new Date(y,mo,1).getDay()+6)%7,n=new Date(y,mo+1,0).getDate();
+ let h=`<div class="cal-h"><button data-mes="-1">‹</button><b>${st.mes.toLocaleDateString(t('loc'),{month:'long',year:'numeric'})}</b><button data-mes="1">›</button></div><div class="cal-g">`
+  +t('dn').map(d=>`<span class="dn">${d}</span>`).join('')+'<span></span>'.repeat(prim);
+ for(let d=1;d<=n;d++){const s=iso(new Date(y,mo,d));h+=`<button class="dia${st.dias.has(s)?' on':''}${s===HOY?' hoy':''}" data-dia="${s}"${s<HOY?' disabled':''}>${d}</button>`}
+ $('cal').innerHTML=h+`</div><div class="row" style="margin-top:8px"><button class="chip" data-rap="hoy">${t('hoy')}</button><button class="chip" data-rap="finde">${t('finde')}</button><button class="chip" data-rap="borrar">${t('borrar')}</button></div>`;
+}
+function finde(){
+ const d=new Date(),w=d.getDay(),out=[];
+ if(w===0)return [iso(d)];
+ for(let k=Math.max(0,5-w);k<=7-w;k++){const x=new Date(d);x.setDate(d.getDate()+k);out.push(iso(x))}
+ return out;
+}
+let mapa,capa;
+function pintarMapa(l){
+ if(!mapa){mapa=L.map('mapa').setView([48.8566,2.3522],12);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(mapa);capa=L.layerGroup().addTo(mapa)}
+ setTimeout(()=>mapa.invalidateSize(),50);capa.clearLayers();const pts=[];
+ l.forEach(p=>{if(p.lat==null||p.lon==null)return;pts.push([p.lat,p.lon]);const url=urlOk(p),fe=fechas(p);
+  L.marker([p.lat,p.lon]).addTo(capa).bindPopup(`<b>${e(tx(p,'nombre'))}</b><br>${e(precioTx(p))}${fe?' · '+e(fe):''}<br>${e(p.lugar)}${url?`<br><a href="${e(url)}" target="_blank" rel="noopener">${t('info')}</a>`:''}`)});
+ if(pts.length)mapa.fitBounds(pts,{padding:[30,30],maxZoom:15});
+}
+function pintar(){
+ pintarFiltros();
+ $('lista').hidden=st.vista==='mapa';$('mapa').hidden=st.vista!=='mapa';
+ if(!st.cargado){$('lista').innerHTML=`<p class="vacio">${t('cargando')}</p>`;return}
+ const l=filtrar(),a=l.filter(p=>p.tipo!=='largo'),b=l.filter(p=>p.tipo==='largo');
+ const sec=(ti,arr)=>arr.length?`<h3 class="sec">${ti} <small>${arr.length}</small></h3>`+arr.map(tarjeta).join(''):'';
+ $('lista').innerHTML=l.length?sec(t('ahora'),a)+sec(t('cuando'),b):`<p class="vacio">${t('vacio')}</p>`;
+ if(st.vista==='mapa')pintarMapa(l);
+}
+async function reportar(id){
+ const m=prompt(t('preg'));
+ if(!m||!m.trim())return;
+ try{const r=await fetch(URL_+'/rest/v1/reportes',{method:'POST',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json',Prefer:'return=minimal'},body:JSON.stringify({plan_id:id,motivo:m.trim().slice(0,300)})});
+  alert(r.ok?t('gracias'):t('noenv'))}catch(_){alert(t('noenv'))}
+}
+document.addEventListener('click',ev=>{
+ const b=ev.target.closest('button');if(!b)return;const ds=b.dataset;
+ if(ds.lang){LANG=ds.lang;try{localStorage.setItem('lang',LANG)}catch(_){};document.documentElement.lang=LANG;pintar()}
+ else if(ds.fav){const id=+ds.fav;favs.has(id)?favs.delete(id):favs.add(id);guardarFavs();pintar()}
+ else if(ds.rep)reportar(+ds.rep);
+ else if(ds.vista){st.vista=ds.vista;pintar()}
+ else if('cat' in ds){st.cat=st.cat===ds.cat?null:ds.cat;pintar()}
+ else if(ds.mes){const n=new Date(st.mes.getFullYear(),st.mes.getMonth()+Number(ds.mes),1),h=new Date();if(n>=new Date(h.getFullYear(),h.getMonth(),1)){st.mes=n;pintarCal()}}
+ else if(ds.dia){st.dias.has(ds.dia)?st.dias.delete(ds.dia):st.dias.add(ds.dia);pintar()}
+ else if(ds.rap){st.dias=ds.rap==='hoy'?new Set([HOY]):ds.rap==='finde'?new Set(finde()):new Set();pintar()}
+ else if(ds.t==='cal'){calAbierto=!calAbierto;pintarFiltros()}
+ else if(ds.t==='gratis'){st.gratis=!st.gratis;pintar()}
+ else if(ds.t==='fav'){st.fav=!st.fav;pintar()}
+});
 async function cargar(){
- const r=await fetch(URL_+'/rest/v1/planes?select=*&order=creado_en.desc',{headers:{apikey:KEY,Authorization:'Bearer '+KEY}});
- datos=await r.json(); pintar(false);
+ try{const r=await fetch(URL_+'/rest/v1/planes?select=*&estado=eq.aprobado&or=(fecha_fin.gte.'+HOY+',fecha_fin.is.null)',{headers:{apikey:KEY,Authorization:'Bearer '+KEY}});
+  if(!r.ok)throw 0;st.datos=await r.json();st.cargado=true;pintar()}
+ catch(_){$('lista').innerHTML=`<p class="vacio">${t('error')}</p>`}
 }
-function pintar(soloGratis){
- const lista=datos.filter(p=>!soloGratis||p.precio.toLowerCase()==='gratis');
- document.getElementById('m').innerHTML=lista.length?lista.map(p=>`<div class="card"><h2>${e(p.nombre)}</h2><span class="p">${e(p.precio)}</span><div class="l">📍 ${e(p.lugar)}</div><p class="d">${e(p.descripcion)}</p></div>`).join(''):'No hay planes todavía.';
-}
-t.onclick=()=>{t.className='on';g.className='';pintar(false)};
-g.onclick=()=>{g.className='on';t.className='';pintar(true)};
-cargar();
+document.documentElement.lang=LANG;document.title=NOMBRE;pintar();cargar();
 </script></body></html>
