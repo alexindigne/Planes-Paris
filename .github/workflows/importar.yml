@@ -17,6 +17,6 @@ jobs:
           node-version: 20
       - name: OpenData Paris
         run: node importar.js
-      - name: Búsqueda web con IA
+      - name: Búsqueda web con IA y duplicados
         if: always()
         run: node buscar.js
