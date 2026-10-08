@@ -2,17 +2,21 @@ name: Importar planes
 on:
   schedule:
     - cron: '0 5 * * 1,4'   # lunes y jueves, 6-7 h de París
-  workflow_dispatch:         # botón para ejecutarlo a mano
+  workflow_dispatch:
 jobs:
   importar:
     runs-on: ubuntu-latest
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - run: node importar.js
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      - name: OpenData Paris
+        run: node importar.js
+      - name: Búsqueda web con IA
+        if: always()
+        run: node buscar.js
