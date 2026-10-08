@@ -5,7 +5,7 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
 <style>
-:root{--bg:#f6f5f2;--card:#fff;--tx:#1d1d1f;--mu:#6b6b70;--ac:#ff4d2e;--bd:#e6e4df;--ease:cubic-bezier(.2,.8,.2,1)}
+:root{--bg:#f6f5f2;--card:#fff;--tx:#1d1d1f;--mu:#6b6b70;--ac:#ff4d2e;--bd:#e6e4df;--oro:#d4a017;--ease:cubic-bezier(.2,.8,.2,1)}
 *{box-sizing:border-box}[hidden]{display:none!important}
 body{font-family:system-ui,-apple-system,sans-serif;margin:0;background:var(--bg);color:var(--tx);-webkit-tap-highlight-color:transparent}
 header{background:var(--card);position:sticky;top:0;z-index:2000;border-bottom:1px solid var(--bd);padding:12px 16px 4px}
@@ -29,6 +29,9 @@ h1{font-size:20px;margin:0}
 main{max-width:640px;margin:auto;padding:12px}
 .sec{font-size:16px;margin:18px 4px 10px}.sec small{color:var(--mu);font-weight:400}
 .vacio{text-align:center;color:var(--mu);padding:40px 0}
+/* Estrellas (icono) */
+.st{fill:none;stroke:var(--oro);stroke-width:1.7;stroke-linejoin:round;vertical-align:-2px;flex:none}
+.st.on{fill:var(--oro)}
 /* Tarjetas */
 .card{background:var(--card);border-radius:16px;padding:14px;margin-bottom:12px;box-shadow:0 1px 3px #0001;border-left:4px solid var(--c,#ddd);cursor:pointer;scroll-margin-top:190px;transition:box-shadow .35s var(--ease),transform .35s var(--ease)}
 .card.ab{box-shadow:0 10px 30px #0000001f;transform:translateY(-2px);cursor:default}
@@ -41,7 +44,8 @@ main{max-width:640px;margin:auto;padding:12px}
 .meta{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:14px;color:var(--mu)}
 .p{font-size:13px;font-weight:600;background:#f1efe9;color:var(--tx);border-radius:10px;padding:2px 8px}
 .p.g{background:#e6f4ea;color:#1e7a3c}
-.rat{color:#b7791f;font-weight:700}.rat small{color:var(--mu);font-weight:400;font-size:12px}
+.rat{display:inline-flex;align-items:center;gap:4px;color:var(--tx);font-weight:700}.rat small{color:var(--mu);font-weight:400;font-size:12px}
+.rat:empty{display:none}
 .l{font-size:14px;color:var(--mu);margin-top:8px}
 .plega{display:grid;grid-template-rows:1fr;opacity:1;transition:grid-template-rows .45s var(--ease),opacity .35s var(--ease)}
 .plega>div{overflow:hidden;min-height:0}
@@ -60,13 +64,15 @@ main{max-width:640px;margin:auto;padding:12px}
 .btn{border:1px solid var(--bd);background:var(--card);color:var(--tx);border-radius:10px;padding:9px 12px;font-size:14px;text-decoration:none}
 .btn.pri{background:var(--tx);color:#fff;border-color:var(--tx)}
 .val{margin-top:18px;padding-top:14px;border-top:1px solid var(--bd)}
-.vt{font-size:14px;font-weight:700;margin-bottom:6px}.vt.mu{color:var(--mu);font-weight:400}
-.stars button{border:0;background:none;font-size:32px;padding:0 3px;color:#e0b341;line-height:1}
-.sv{color:#e0b341}
-textarea{width:100%;border:1px solid var(--bd);border-radius:10px;padding:10px;font:inherit;font-size:15px;margin:8px 0;resize:vertical}
+.vt{display:flex;align-items:center;gap:6px;font-size:14px;font-weight:700;margin-bottom:8px}.vt.mu{color:var(--mu);font-weight:400}
+.vt span{display:inline-flex;gap:2px}
+.stars{display:flex;gap:4px}
+.stars button{border:0;background:none;padding:2px;line-height:0}
+textarea{width:100%;border:1px solid var(--bd);border-radius:10px;padding:10px;font:inherit;font-size:15px;margin:10px 0 8px;resize:vertical}
 .coms h4{font-size:14px;margin:18px 0 8px}
 .com{background:#f7f6f3;border-radius:10px;padding:10px 12px;margin-bottom:8px;font-size:14px;line-height:1.4}
-.com .s{color:#e0b341;font-size:13px;margin-bottom:4px}.com .s span{color:var(--mu)}
+.com .s{display:flex;align-items:center;gap:2px;margin-bottom:4px;font-size:12px;color:var(--mu)}
+.com .s em{font-style:normal;margin-left:6px}
 .rep{display:block;margin-top:14px;border:0;background:none;color:var(--mu);font-size:13px;padding:0;text-decoration:underline}
 .chev{display:flex;justify-content:center;align-items:center;gap:6px;font-size:12px;color:var(--mu);margin-top:12px;cursor:pointer}
 .flecha{display:inline-block;transition:transform .45s var(--ease)}
@@ -168,7 +174,9 @@ const larga=s=>parse(s).toLocaleDateString(t('loc'),{weekday:'short',day:'numeri
 const completa=s=>parse(s).toLocaleDateString(t('loc'),{weekday:'long',day:'numeric',month:'long'});
 const may=s=>s.charAt(0).toUpperCase()+s.slice(1);
 const sinAc=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-const estrellas=n=>'★'.repeat(n)+'☆'.repeat(5-n);
+// Icono de estrella
+const STAR=(on,s=16)=>`<svg class="st${on?' on':''}" width="${s}" height="${s}" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.8l2.8 5.9 6.4.8-4.7 4.5 1.2 6.4L12 17.3l-5.7 3.1 1.2-6.4-4.7-4.5 6.4-.8z"/></svg>`;
+const estrellas=(n,s=16)=>[1,2,3,4,5].map(i=>STAR(i<=n,s)).join('');
 const mapsLink=p=>IOS?'https://maps.apple.com/?q='+encodeURIComponent(p.lugar)+(p.lat!=null?'&ll='+p.lat+','+p.lon:''):'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(p.lugar);
 function fechas(p){
  const i=p.fecha_inicio,f=p.fecha_fin;
@@ -211,13 +219,13 @@ function badges(p){
  else if(p.fecha_fin&&p.tipo==='largo'&&diasEntre(HOY,p.fecha_fin)<=3)b.push(`<span class="bd urge">${t('pronto')}</span>`);
  return b.join('');
 }
-function ratHTML(id){const r=st.rat[id];return r&&r.total?`★ ${Number(r.media).toLocaleString(t('loc'),{minimumFractionDigits:1,maximumFractionDigits:1})} <small>(${r.total})</small>`:''}
+function ratHTML(id){const r=st.rat[id];return r&&r.total?`${STAR(true,14)}${Number(r.media).toLocaleString(t('loc'),{minimumFractionDigits:1,maximumFractionDigits:1})} <small>(${r.total})</small>`:''}
 function valHTML(p){
  const mio=misVotos[p.id];
- if(mio)return `<div class="vt">${t('tuVoto')} <span class="sv">${estrellas(mio)}</span></div>`;
- if(p.fecha_inicio&&p.fecha_inicio>HOY)return `<div class="vt mu">⭐ ${t('desde')}${corta(p.fecha_inicio)}</div>`;
+ if(mio)return `<div class="vt">${t('tuVoto')} <span>${estrellas(mio,18)}</span></div>`;
+ if(p.fecha_inicio&&p.fecha_inicio>HOY)return `<div class="vt mu">${STAR(false,15)} ${t('desde')}${corta(p.fecha_inicio)}</div>`;
  const s=selEst[p.id]||0;
- return `<div class="vt">${t('valorar')}</div><div class="stars">${[1,2,3,4,5].map(n=>`<button data-star="${n}" data-pid="${p.id}">${n<=s?'★':'☆'}</button>`).join('')}</div>
+ return `<div class="vt">${t('valorar')}</div><div class="stars">${[1,2,3,4,5].map(n=>`<button data-star="${n}" data-pid="${p.id}" aria-label="${n}">${STAR(n<=s,30)}</button>`).join('')}</div>
  <textarea id="txt-${p.id}" maxlength="500" rows="3" placeholder="${e(t('comPh'))}"></textarea><button class="btn pri" data-enviar="${p.id}">${t('enviar')}</button>`;
 }
 function tarjeta(p){
@@ -315,7 +323,7 @@ async function cargarComs(id){
  try{
   const r=await api(`comentarios_publicos?plan_id=eq.${id}&order=creado_en.desc&limit=20`);if(!r.ok)return;
   const d=await r.json(),box=$('coms-'+id);if(!box)return;
-  box.innerHTML=d.length?`<h4>${t('opiniones')}</h4>`+d.map(c=>`<div class="com"><div class="s">${estrellas(c.estrellas)} <span>· ${new Date(c.creado_en).toLocaleDateString(t('loc'),{day:'numeric',month:'short'})}</span></div>${e(c.comentario)}</div>`).join(''):'';
+  box.innerHTML=d.length?`<h4>${t('opiniones')}</h4>`+d.map(c=>`<div class="com"><div class="s">${estrellas(c.estrellas,13)}<em>· ${new Date(c.creado_en).toLocaleDateString(t('loc'),{day:'numeric',month:'short'})}</em></div>${e(c.comentario)}</div>`).join(''):'';
  }catch(_){}
 }
 function pintarLista(){
@@ -377,14 +385,14 @@ document.addEventListener('click',ev=>{
   return;
  }
  const ds=b.dataset;
- if(ds.lang){LANG=ds.lang;guardar('lang',LANG);try{localStorage.setItem('lang',LANG)}catch(_){};document.documentElement.lang=LANG;pintar()}
+ if(ds.lang){LANG=ds.lang;try{localStorage.setItem('lang',LANG)}catch(_){};document.documentElement.lang=LANG;pintar()}
  else if(ds.cerrar)cerrarFull();
  else if(ds.ver){st.vista='lista';abierto=+ds.ver;if(mapa)mapa.closePopup();pintar();irA(abierto,'start')}
  else if(ds.fav){const id=+ds.fav;favs.has(id)?favs.delete(id):favs.add(id);guardar('favs',[...favs]);b.textContent=favs.has(id)?'❤️':'🤍';if(st.fav)pintar()}
  else if(ds.share)compartir(+ds.share);
  else if(ds.ics)calendario(+ds.ics);
  else if(ds.rep)reportar(+ds.rep);
- else if(ds.star){const pid=+ds.pid,n=+ds.star;selEst[pid]=n;document.querySelectorAll(`[data-pid="${pid}"]`).forEach(x=>x.textContent=+x.dataset.star<=n?'★':'☆')}
+ else if(ds.star){const pid=+ds.pid,n=+ds.star;selEst[pid]=n;document.querySelectorAll(`[data-pid="${pid}"]`).forEach(x=>x.innerHTML=STAR(+x.dataset.star<=n,30))}
  else if(ds.enviar)enviarVoto(+ds.enviar);
  else if(ds.vista){st.vista=ds.vista;pintar()}
  else if(ds.abrirf)abrirSheet();
