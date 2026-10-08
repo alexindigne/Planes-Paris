@@ -13,7 +13,8 @@ main{max-width:640px;margin:auto;padding:12px}
 input{width:100%;padding:12px;border:1px solid var(--bd);border-radius:10px;font-size:16px;margin-bottom:8px}
 button{border:1px solid var(--bd);background:var(--card);color:var(--tx);border-radius:10px;padding:8px 12px;font-size:14px}
 .pri{background:var(--tx);color:#fff;border-color:var(--tx);width:100%;padding:12px}
-.tabs{display:flex;gap:6px;margin-bottom:12px}
+.tabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+.tabs button{font-size:13px;padding:7px 10px}
 .tabs button.on{background:var(--tx);color:#fff;border-color:var(--tx)}
 .card{background:var(--card);border-radius:14px;padding:14px;margin-bottom:10px;box-shadow:0 1px 3px #0001}
 .card h2{font-size:16px;margin:4px 0 6px}
@@ -30,7 +31,7 @@ a{color:var(--tx);font-size:14px}
 <main>
 <form id="login" hidden><input id="em" type="email" placeholder="Email" autocomplete="username" required><input id="pw" type="password" placeholder="Contraseña" autocomplete="current-password" required><button class="pri">Entrar</button><p id="err"></p></form>
 <div id="app" hidden>
-<div class="tabs"><button data-tab="pendiente" class="on">Pendientes</button><button data-tab="aprobado">Aprobados</button><button data-tab="reportes">Reportes</button></div>
+<div class="tabs"><button data-tab="pendiente" class="on">Pendientes</button><button data-tab="aprobado">Aprobados</button><button data-tab="reportes">Reportes</button><button data-tab="comentarios">Comentarios</button></div>
 <div id="extra"></div><div id="lista"></div>
 </div></main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -55,6 +56,7 @@ $('login').addEventListener('submit',async ev=>{
 $('salir').onclick=async()=>{await db.auth.signOut();iniciar()};
 const fallo=err=>{$('lista').innerHTML=`<p class="vacio">Error: ${e(err.message)}</p>`};
 const fecha=p=>[...new Set([p.fecha_inicio,p.fecha_fin].filter(Boolean))].join(' → ');
+const est=n=>'★'.repeat(n)+'☆'.repeat(5-n);
 async function cargar(){
  $('lista').innerHTML='<p class="vacio">Cargando…</p>';$('extra').innerHTML='';cache.clear();
  if(tab==='reportes'){
@@ -64,12 +66,18 @@ async function cargar(){
   $('lista').innerHTML=data.length?data.map(r=>`<div class="card"><h2>${e(r.planes?r.planes.nombre:'Plan ya borrado')}</h2><p class="d">${e(r.motivo)}</p><div class="meta">${new Date(r.creado_en).toLocaleString('es-ES')}</div><div class="acc">${r.planes?`<button class="rojo" data-desc="${r.planes.id}">Quitar plan</button>`:''}<button data-ign="${r.id}">Ignorar</button></div></div>`).join(''):'<p class="vacio">No hay reportes 🎉</p>';
   return;
  }
+ if(tab==='comentarios'){
+  const {data,error}=await db.from('valoraciones').select('id,estrellas,comentario,creado_en,planes(nombre)').not('comentario','is',null).order('creado_en',{ascending:false}).limit(200);
+  if(error)return fallo(error);
+  $('lista').innerHTML=data.length?data.map(c=>`<div class="card"><div class="meta">${est(c.estrellas)} · ${new Date(c.creado_en).toLocaleString('es-ES')}</div><h2>${e(c.planes?c.planes.nombre:'Plan borrado')}</h2><p class="d">${e(c.comentario)}</p><div class="acc"><button class="rojo" data-delcom="${c.id}">Borrar comentario</button></div></div>`).join(''):'<p class="vacio">Aún no hay comentarios.</p>';
+  return;
+ }
  const {data,error}=await db.from('planes').select('*').eq('estado',tab).order('fecha_inicio',{ascending:true,nullsFirst:true}).limit(500);
  if(error)return fallo(error);
  data.forEach(p=>cache.set(p.id,p));
  if(tab==='pendiente'&&data.length)$('extra').innerHTML=`<button class="verde" style="width:100%;margin-bottom:12px" data-todos="1">Aprobar los ${data.length} pendientes</button>`;
  $('lista').innerHTML=data.length?data.map(p=>{const url=/^https:\/\//i.test(p.url_fuente||'')?p.url_fuente:null;
-  return `<div class="card"><div class="meta">${e(p.categoria||'sin categoría')} · ${e(p.precio)} · ${e(fecha(p))}</div><h2>${e(p.nombre)}</h2><div class="meta">📍 ${e(p.lugar)}${p.horario?' · 🕐 '+e(p.horario):''}</div><p class="d">${e(p.descripcion)}</p>${url?`<a href="${e(url)}" target="_blank" rel="noopener">Ver fuente ↗</a>`:''}
+  return `<div class="card"><div class="meta">${e(p.categoria||'sin categoría')} · ${e(p.precio)} · ${e(fecha(p))} · ${e(p.fuente||'')}</div><h2>${e(p.nombre)}</h2><div class="meta">📍 ${e(p.lugar)}${p.horario?' · 🕐 '+e(p.horario):''}</div><p class="d">${e(p.descripcion)}</p>${url?`<a href="${e(url)}" target="_blank" rel="noopener">Ver fuente ↗</a>`:''}
   <div class="acc">${tab==='pendiente'?`<button class="verde" data-est="aprobado" data-id="${p.id}">✓ Aprobar</button>`:`<button data-est="pendiente" data-id="${p.id}">↩ A pendiente</button>`}<button class="rojo" data-desc="${p.id}">✕ Descartar</button></div></div>`}).join('')
   :`<p class="vacio">No hay planes ${tab==='pendiente'?'pendientes':'aprobados'}.</p>`;
 }
@@ -86,6 +94,7 @@ document.addEventListener('click',async ev=>{
  else if(ds.est){b.disabled=true;const {error}=await db.from('planes').update({estado:ds.est}).eq('id',+ds.id);error?fallo(error):cargar()}
  else if(ds.desc){if(confirm('¿Descartar este plan? Desaparecerá y la IA no lo volverá a traer.')){b.disabled=true;descartar(+ds.desc)}}
  else if(ds.ign){b.disabled=true;const {error}=await db.from('reportes').delete().eq('id',+ds.ign);error?fallo(error):cargar()}
+ else if(ds.delcom){if(confirm('¿Borrar este comentario? Las estrellas se mantienen.')){b.disabled=true;const {error}=await db.from('valoraciones').update({comentario:null}).eq('id',+ds.delcom);error?fallo(error):cargar()}}
  else if(ds.todos){if(confirm('¿Aprobar todos los pendientes?')){b.disabled=true;const {error}=await db.from('planes').update({estado:'aprobado'}).eq('estado','pendiente');error?fallo(error):cargar()}}
 });
 iniciar();
