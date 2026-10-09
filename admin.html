@@ -17,12 +17,14 @@ button{border:1px solid var(--bd);background:var(--card);color:var(--tx);border-
 .tabs button{font-size:13px;padding:7px 10px}
 .tabs button.on{background:var(--tx);color:#fff;border-color:var(--tx)}
 .card{background:var(--card);border-radius:14px;padding:14px;margin-bottom:10px;box-shadow:0 1px 3px #0001}
-.card h2{font-size:16px;margin:4px 0 6px}
-.meta{font-size:13px;color:var(--mu)}
-.d{font-size:14px;margin:8px 0}
+.card h2{font-size:16px;margin:6px 0 4px;line-height:1.35}
+.sub2{font-size:14px;color:var(--mu);margin:0 0 6px}
+.meta{font-size:13px;color:var(--mu);line-height:1.5}
+.d{font-size:14px;margin:8px 0;line-height:1.5}
 .acc{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
 .verde{background:var(--ok);color:#fff;border-color:var(--ok)}
 .rojo{color:var(--ko);border-color:var(--ko)}
+.negro{background:var(--tx);color:#fff;border-color:var(--tx)}
 .vacio{text-align:center;color:var(--mu);padding:30px 0}
 #err{color:var(--ko);font-size:14px}
 a{color:var(--tx);font-size:14px}
@@ -77,8 +79,15 @@ async function cargar(){
  data.forEach(p=>cache.set(p.id,p));
  if(tab==='pendiente'&&data.length)$('extra').innerHTML=`<button class="verde" style="width:100%;margin-bottom:12px" data-todos="1">Aprobar los ${data.length} pendientes</button>`;
  $('lista').innerHTML=data.length?data.map(p=>{const url=/^https:\/\//i.test(p.url_fuente||'')?p.url_fuente:null;
-  return `<div class="card"><div class="meta">${e(p.categoria||'sin categoría')} · ${e(p.precio)} · ${e(fecha(p))} · ${e(p.fuente||'')}</div><h2>${e(p.nombre)}</h2><div class="meta">📍 ${e(p.lugar)}${p.horario?' · 🕐 '+e(p.horario):''}</div><p class="d">${e(p.descripcion)}</p>${url?`<a href="${e(url)}" target="_blank" rel="noopener">Ver fuente ↗</a>`:''}
-  <div class="acc">${tab==='pendiente'?`<button class="verde" data-est="aprobado" data-id="${p.id}">✓ Aprobar</button>`:`<button data-est="pendiente" data-id="${p.id}">↩ A pendiente</button>`}<button class="rojo" data-desc="${p.id}">✕ Descartar</button></div></div>`}).join('')
+  const dias=Array.isArray(p.fechas)&&p.fechas.length?'Días: '+p.fechas.slice(0,10).join(', ')+(p.fechas.length>10?'…':''):'Todos los días del rango';
+  return `<div class="card"><div class="meta">${p.imprescindible?'🔥 IMPRESCINDIBLE · ':''}nota ${p.nota??'–'} · ${e(p.categoria||'sin categoría')} · ${e(p.precio)} · ${e(p.fuente||'')}</div>
+  <h2>${e(p.nombre)}</h2>${p.subtitulo?`<p class="sub2">${e(p.subtitulo)}</p>`:''}
+  <div class="meta">📅 ${e(fecha(p))} · ${e(dias)}</div>
+  <div class="meta">📍 ${e(p.lugar)}${p.horario?' · 🕐 '+e(p.horario):''}</div>
+  <p class="d">${e(p.descripcion)}</p>${url?`<a href="${e(url)}" target="_blank" rel="noopener">Ver fuente ↗</a>`:''}
+  <div class="acc">${tab==='pendiente'?`<button class="verde" data-est="aprobado" data-id="${p.id}">✓ Aprobar</button>`:`<button data-est="pendiente" data-id="${p.id}">↩ A pendiente</button>`}
+  <button class="${p.imprescindible?'':'negro'}" data-imp="${p.id}" data-v="${p.imprescindible?0:1}">${p.imprescindible?'Quitar imprescindible':'Marcar imprescindible'}</button>
+  <button class="rojo" data-desc="${p.id}">✕ Descartar</button></div></div>`}).join('')
   :`<p class="vacio">No hay planes ${tab==='pendiente'?'pendientes':'aprobados'}.</p>`;
 }
 async function descartar(id){
@@ -92,6 +101,7 @@ document.addEventListener('click',async ev=>{
  const b=ev.target.closest('button');if(!b)return;const ds=b.dataset;
  if(ds.tab){tab=ds.tab;document.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('on',x===b));cargar()}
  else if(ds.est){b.disabled=true;const {error}=await db.from('planes').update({estado:ds.est}).eq('id',+ds.id);error?fallo(error):cargar()}
+ else if(ds.imp){b.disabled=true;const {error}=await db.from('planes').update({imprescindible:ds.v==='1'}).eq('id',+ds.imp);error?fallo(error):cargar()}
  else if(ds.desc){if(confirm('¿Descartar este plan? Desaparecerá y la IA no lo volverá a traer.')){b.disabled=true;descartar(+ds.desc)}}
  else if(ds.ign){b.disabled=true;const {error}=await db.from('reportes').delete().eq('id',+ds.ign);error?fallo(error):cargar()}
  else if(ds.delcom){if(confirm('¿Borrar este comentario? Las estrellas se mantienen.')){b.disabled=true;const {error}=await db.from('valoraciones').update({comentario:null}).eq('id',+ds.delcom);error?fallo(error):cargar()}}
