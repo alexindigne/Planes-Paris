@@ -3,7 +3,7 @@ const MODELO = 'claude-haiku-5-5';
 const DIAS_ANTELACION = 21;    // plans starting in the next 3 weeks (or already running)
 const MAX_POR_EJECUCION = 250; // max new events the AI reviews per run
 const PRECIO_MAX = 15;         // max € for paid plans
-const NOTA_MIN = 5;            // minimum score to get in ("Our pick" starts at 7)
+const NOTA_MIN = 6;            // minimum score to get in ("Our pick" starts at 8)
 const IMPRESCINDIBLES = ['Fête de la Musique', 'Fête des Vendanges de Montmartre', 'Nuit Blanche', 'Journées du Patrimoine', 'Journées Européennes du Patrimoine', 'Paris Plages', 'Fashion Week', 'Marché de Noël', 'Marchés de Noël', '14 juillet', 'Techno Parade', 'Foire du Trône', 'Nuit des Musées', 'Nouvel An chinois'];
 // =======================================
 
@@ -82,11 +82,11 @@ async function ids(tabla) {
 }
 
 // ===== EDITORIAL LINE =====
-const CRITERIA = `You curate "Planinparis", an app that answers "what should I do in Paris?" for locals aged 18-45. It is for everyone: we want plenty of good, accessible plans every week, and we highlight the ones that are truly worth it — surprising, original, with a great vibe, or things you wouldn't stumble upon by chance.
-WHAT GETS IN: any dated plan many people would enjoy: temporary exhibitions, concerts and live music, DJ sets and parties, festivals, markets (vintage, flea, brocantes, food), brand pop-ups and events, open-air cinema and screenings, fairs, popular celebrations, open days, free museum days, outdoor plans, original ideas for a date or for friends.
+const CRITERIA = `You curate "Planinparis", an app that answers "what should I do in Paris?" for locals aged 18-45. We want plenty of genuinely good plans every week, and we highlight the ones that are truly worth it — surprising, original, with a great vibe, or things you wouldn't stumble upon by chance.
+WHAT GETS IN: dated plans many people would enjoy: temporary exhibitions, concerts and live music, DJ sets and parties, festivals, markets (vintage, flea, brocantes, food), brand pop-ups and events, open-air cinema and screenings, fairs, popular celebrations, open days, free museum days, outdoor plans, original ideas for a date or for friends.
 WHAT SCORES HIGHEST: brand pop-ups and activations, launches, temporary stores and cafés, showrooms and concept-store events; fashion, Fashion Week, streetwear, sneakers and street culture; openings and vernissages; art, design, photography and temporary installations; DJ sets and parties (electronic, house, disco, hip-hop, R&B, alternative), listening sessions, vinyl, rooftops, afterworks and apéros with good music; vintage; food & drink with a concept; small or underground events with a great vibe and strong visual appeal.
-AVOID: tourist landmarks (Eiffel Tower, Louvre, Arc de Triomphe, Sacré-Cœur…) and permanent collections unless there is something special with a date (free entry day, late opening); regular restaurants and bars; standard tourist activities; generic lists; workshops, courses, talks, kids-only activities, admin services and regular sports.
-SCORE 1-10: 1-4 doesn't fit or is dull; 5-6 solid, accessible plan many people would enjoy; 7-8 highly recommended, with personality and atmosphere; 9-10 exceptional, the kind of plan that makes you say "this is so cool". Originality and atmosphere weigh more than popularity.
+AVOID: tourist landmarks (Eiffel Tower, Louvre, Arc de Triomphe, Sacré-Cœur…) and permanent collections unless there is something special with a date (free entry day, late opening); regular restaurants and bars; standard tourist activities; generic lists; workshops, courses, talks, kids-only activities, admin services, regular sports, and anything that is mainly an advert.
+SCORE 1-10 (be demanding — many plans won't reach 6): 1-5 = not good enough for the app (dull, generic, mainly commercial, tourist trap, low effort or unclear); 6 = a genuinely good plan worth going to; 7 = very good, with personality and atmosphere; 8 = excellent, one of the week's best; 9-10 = exceptional, the kind of plan that makes you say "this is so cool". Originality, atmosphere and quality weigh more than popularity.
 MUST-DOS: set "imprescindible": true only for Paris's big events that everyone goes to and the city waits for every year, like ${IMPRESCINDIBLES.join(', ')}, or events of that scale.`;
 
 const DATES_RULE = `REAL DATES: many events are announced with a long range (e.g. "21 Oct – 4 Nov") but only happen on certain days. Read carefully and return the real days:
@@ -255,7 +255,7 @@ async function main() {
   console.log('===== REPORT · OFFICIAL AGENDA =====');
   console.log(`Reviewed: ${lista.length} | In: ${planes.length} (published ${auto}, pending ${planes.length - auto}) | Rejected: ${desc.length}`);
   console.log('Pending reasons:', JSON.stringify(motivos));
-  console.log(`Our picks (7+): ${planes.filter(p => (p.nota || 0) >= 7).length} | Must-dos: ${planes.filter(p => p.imprescindible).length}`);
+  console.log(`Our picks (8+): ${planes.filter(p => (p.nota || 0) >= 8).length} | Must-dos: ${planes.filter(p => p.imprescindible).length}`);
   console.log(`Haiku tokens in ${uso.in} / out ${uso.out} → approx $${coste.toFixed(2)}`);
 }
 main().catch(err => { console.error(err); process.exit(1); });
