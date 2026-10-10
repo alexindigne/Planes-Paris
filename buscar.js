@@ -7,9 +7,16 @@ const MAX_PLANES = 100;          // max individual plan pages read per run (cont
 const MAX_AGENDAS = 20;          // max agenda pages read per run
 const BUSQUEDAS = 6;             // web searches to find this week's agenda pages ($0.01 each)
 const MAX_PARES = 150;           // max suspected duplicate pairs checked per run
-const SITIOS = ['sortiraparis.com', 'lebonbon.fr', 'parissecret.com', 'pariszigzag.fr', 'telerama.fr'];
-// Agenda pages read every time (add your own if you want)
+const SITIOS = ['sortiraparis.com', 'lebonbon.fr', 'parissecret.com', 'pariszigzag.fr'];
+// Agenda pages read every time. Sortir à Paris keeps the same guide number every week
+// and redirects it to the current edition, so these always show the latest version.
 const FUENTES_FIJAS = [
+  'https://www.sortiraparis.com/en/news/in-paris/guides/53380-what-to-do-this-week-in-paris',
+  'https://www.sortiraparis.com/en/news/in-paris/guides/121534-top-picks-for-the-week-in-paris-and-ile-de-france',
+  'https://www.sortiraparis.com/en/news/in-paris/guides/47103-what-to-do-this-weekend-in-paris-and-ile-de-france',
+  'https://www.sortiraparis.com/en/news/in-paris/guides/198773-top-weekend-picks-in-paris-and-ile-de-france',
+  'https://www.sortiraparis.com/en/news/in-paris/guides/77600-things-to-do-in-paris-and-ile-de-france-this-month',
+  'https://www.sortiraparis.com/en/news/in-paris/guides/322588-ideas-for-things-to-do-in-paris-that-wrap-up-this-month',
   'https://en.lebonbon.fr/paris/good-deals/what-to-do-in-paris-this-weekend/'
 ];
 const IMPRESCINDIBLES = ['Fête de la Musique', 'Fête des Vendanges de Montmartre', 'Nuit Blanche', 'Journées du Patrimoine', 'Journées Européennes du Patrimoine', 'Paris Plages', 'Fashion Week', 'Art Basel', 'Paris Photo', 'Paris Design Week', 'Marché de Noël', 'Marchés de Noël', '14 juillet', 'Techno Parade', 'Foire du Trône', 'Nuit des Musées', 'Nouvel An chinois'];
@@ -27,7 +34,7 @@ const CATEGORIAS = ['música', 'expo', 'pop-up', 'mercado', 'festival', 'cine', 
 const IDEAL = ['Solo', 'Date', 'Friends', 'Groups'];
 const PARIS = /^750(0[1-9]|1\d|20)$|^75116$/;
 const CP_TXT = /\b(750(?:0[1-9]|1\d|20)|75116)\b/;
-const AGENDAS_DOM = [...SITIOS, 'timeout.com', 'parisjetaime.com', 'eventbrite.', 'feverup.com', 'shotgun.live', 'dice.fm', 'ra.co', 'billetweb.fr', 'paris.fr', 'facebook.com'];
+const AGENDAS_DOM = [...SITIOS, 'timeout.com', 'parisjetaime.com', 'telerama.fr', 'eventbrite.', 'feverup.com', 'shotgun.live', 'dice.fm', 'ra.co', 'billetweb.fr', 'paris.fr', 'facebook.com'];
 const PISTAS = /que-faire|what-to-do|things-to-do|this-week|cette-semaine|week-?end|agenda|bons-plans|good-deals|sorties|pop-?up|ephemere|expositions?|exhibitions?|concerts?|guide|art-?week|art-basel|selection|idees|picks|lineup|events/i;
 const UA = 'Mozilla/5.0 (compatible; Planinparis/1.0; +https://alexindigne.github.io/Planes-Paris/)';
 const limpia = s => String(s ?? '').replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
@@ -42,11 +49,11 @@ const arr = (a, n, len) => Array.isArray(a) ? a.map(x => limpia(x).slice(0, len)
 const host = u => { try { return new URL(u).hostname.replace(/^www\./, '').replace(/^en\./, '').toLowerCase(); } catch (_) { return ''; } };
 const esAgenda = u => { const h = host(u); return !h || AGENDAS_DOM.some(d => h.includes(d)); };
 const urlKey = u => { try { const x = new URL(u); return (x.hostname.replace(/^www\./, '') + x.pathname.replace(/\/+$/, '')).toLowerCase(); } catch (_) { return null; } };
-// Same guide with a different link (e.g. Sortir à Paris guide id) = same page
+// Same guide with a different link (e.g. Sortir à Paris guide number) = same page
 const guiaKey = u => { const m = String(u).match(/\/(?:guides|articles)\/(\d+)-/); return m ? host(u) + '#' + m[1] : urlKey(u); };
 const ign = { Prefer: 'resolution=ignore-duplicates,return=minimal' };
 const uso = { in: 0, out: 0, busquedas: 0 };
-const informe = { encontradas: [], agendas: [], bloqueadas: new Set(), candidatos: 0, leidas: 0, listas: 0, nota: 0, fecha: 0, precio: 0, fuera: 0, fallos: 0 };
+const informe = { encontradas: 0, agendas: [], bloqueadas: new Set(), candidatos: 0, leidas: 0, listas: 0, nota: 0, fecha: 0, precio: 0, fuera: 0, fallos: 0 };
 
 // ===== REAL DAYS =====
 const DOW = { do: 0, lu: 1, ma: 2, mi: 3, ju: 4, vi: 5, sa: 6 };
@@ -115,22 +122,25 @@ const robots = new Map();
 async function permitido(url) {
   let u; try { u = new URL(url); } catch (_) { return false; }
   if (!robots.has(u.origin)) {
-    const reglas = [];
-    try {
-      const r = await fetch(u.origin + '/robots.txt', { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(8000) });
-      if (r.ok) {
-        let aplica = false;
-        for (const linea of (await r.text()).split(/\r?\n/)) {
-          const i = linea.indexOf(':'); if (i < 0) continue;
-          const k = linea.slice(0, i).trim().toLowerCase(), v = linea.slice(i + 1).trim();
-          if (k === 'user-agent') aplica = v === '*';
-          else if (aplica && k === 'disallow' && v) reglas.push(v.replace(/\*.*$/, ''));
+    robots.set(u.origin, (async () => {
+      const reglas = [];
+      try {
+        const r = await fetch(u.origin + '/robots.txt', { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(8000) });
+        if (r.ok) {
+          let aplica = false;
+          for (const linea of (await r.text()).split(/\r?\n/)) {
+            const i = linea.indexOf(':'); if (i < 0) continue;
+            const k = linea.slice(0, i).trim().toLowerCase(), v = linea.slice(i + 1).trim();
+            if (k === 'user-agent') aplica = v === '*';
+            else if (aplica && k === 'disallow' && v) reglas.push(v.replace(/\*.*$/, ''));
+          }
         }
-      }
-    } catch (_) {}
-    robots.set(u.origin, reglas);
+      } catch (_) {}
+      return reglas;
+    })());
   }
-  return !robots.get(u.origin).some(p => p && u.pathname.startsWith(p));
+  const reglas = await robots.get(u.origin);
+  return !reglas.some(p => p && u.pathname.startsWith(p));
 }
 const ENT = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ', rsquo: '’', lsquo: '‘', ldquo: '“', rdquo: '”', laquo: '«', raquo: '»', eacute: 'é', egrave: 'è', ecirc: 'ê', agrave: 'à', acirc: 'â', ccedil: 'ç', ocirc: 'ô', ucirc: 'û', icirc: 'î', hellip: '…', ndash: '–', mdash: '—', euro: '€' };
 const decode = s => s.replace(/&#(\d+);/g, (m, n) => String.fromCodePoint(+n)).replace(/&#x([0-9a-f]+);/gi, (m, n) => String.fromCodePoint(parseInt(n, 16))).replace(/&([a-z]+);/gi, (m, n) => ENT[n.toLowerCase()] ?? m);
@@ -200,18 +210,31 @@ const WRITING = `WRITING (in English): like a local friend with taste recommendi
 
 // ===== 1. FIND THIS WEEK'S AGENDA PAGES (cheap) =====
 async function descubrirAgendas() {
-  const j = await claude({
-    max_tokens: 2000,
-    messages: [{ role: 'user', content: `Today is ${hoy}. Use web_search to find the CURRENT agenda pages (recently published or updated) that list things to do in Paris between today and ${limite}, on these sites: ${SITIOS.join(', ')}.
-Look for: "what to do in Paris this week", the weekend guide of free or cheap outings, the week's concerts, the month's exhibitions, pop-up stores / boutiques éphémères open right now, and the guide to art week / Art Basel Paris if it is happening; Le Bonbon weekend agenda; Paris Secret, Paris Zig Zag and Télérama Sortir weekend ideas.
+  let sitios = [...SITIOS], j = null;
+  // If a site blocks the search tool, drop it and try again
+  for (let intento = 0; intento < 3 && sitios.length; intento++) {
+    try {
+      j = await claude({
+        max_tokens: 2000,
+        messages: [{ role: 'user', content: `Today is ${hoy}. Use web_search to find the CURRENT agenda pages (recently published or updated) that list things to do in Paris between today and ${limite}, on these sites: ${sitios.join(', ')}.
+Look for: "what to do in Paris this week", the weekend guide of free or cheap outings, the week's concerts, the month's exhibitions, pop-up stores / boutiques éphémères open right now, and the guide to art week / Art Basel Paris if it is happening; Le Bonbon weekend agenda; Paris Secret and Paris Zig Zag weekend ideas.
 Only listing/guide pages that present many plans (not single events), about the current or coming weeks.
 Return ONLY a JSON array of URL strings copied from the search results, between <json> and </json>.` }],
-    tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: BUSQUEDAS, allowed_domains: SITIOS, user_location: { type: 'approximate', city: 'Paris', country: 'FR', timezone: 'Europe/Paris' } }]
-  });
+        tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: BUSQUEDAS, allowed_domains: sitios, user_location: { type: 'approximate', city: 'Paris', country: 'FR', timezone: 'Europe/Paris' } }]
+      });
+      break;
+    } catch (err) {
+      const bloqueados = sitios.filter(s => err.message.includes(s));
+      if (!bloqueados.length) { console.error('Agenda search failed:', err.message); return []; }
+      bloqueados.forEach(s => informe.bloqueadas.add(`${s} (blocks the search tool)`));
+      sitios = sitios.filter(s => !bloqueados.includes(s));
+    }
+  }
+  if (!j) return [];
   const elegidas = [], resultados = [];
   for (const x of leerLista(textoDe(j))) { const u = typeof x === 'string' ? x : (x && (x.url || x.link)); if (u) elegidas.push(u); }
   for (const b of j.content) if (b.type === 'web_search_tool_result' && Array.isArray(b.content)) for (const r of b.content) if (r.url) resultados.push(r.url);
-  const vale = u => /^https:\/\//i.test(u) && SITIOS.some(s => host(u).endsWith(s));
+  const vale = u => /^https:\/\//i.test(u) && sitios.some(s => host(u).endsWith(s));
   return [...elegidas.filter(vale), ...resultados.filter(u => vale(u) && PISTAS.test(u))];
 }
 // Only readable pages, no repeated guides, alternating sites so every site gets read
@@ -347,32 +370,38 @@ async function main() {
   const descartados = new Set(await ids('descartados'));
   const idDe = url => 'web-' + (urlKey(url) || url).slice(0, 180);
 
-  // 1. Agenda pages of this week (fixed ones first, only readable, no repeats, alternating sites)
-  let encontradas = [];
-  try { encontradas = await descubrirAgendas(); } catch (err) { console.error('Agenda search failed:', err.message); }
-  informe.encontradas = encontradas;
+  // 1. Agenda pages: fixed ones + the ones found this week (only readable, no repeats, alternating sites)
+  const encontradas = await descubrirAgendas();
+  informe.encontradas = encontradas.length;
   const agendas = await repartir([...FUENTES_FIJAS, ...encontradas]);
+
+  // 2. Read the agendas (3 at a time) and collect plans with their own link
   const candidatos = new Map();
-  for (const url of agendas) {
+  await enParalelo(agendas, 3, async url => {
     let pag;
-    try { pag = await bajar(url); } catch (err) { informe.bloqueadas.add(`${host(url)} (${err.message})`); continue; }
+    try { pag = await bajar(url); } catch (err) { informe.bloqueadas.add(`${host(url)} (${err.message})`); return; }
     let lista = [];
     try { lista = await extraer(pag); } catch (err) { console.error('Extract failed:', err.message); }
-    informe.agendas.push(`${host(url)}: ${lista.length} plans`);
+    informe.agendas.push(`${host(url)}: ${lista.length}`);
     for (const p of lista) {
       if (!/^https:\/\//i.test(p.url || '')) continue;
       const k = urlKey(p.url);
-      if (!k || k === urlKey(pag.url) || vistosUrl.has(k) || descartados.has(idDe(p.url))) continue;
-      if (vistosNombre.has(norm(p.nombre))) continue;
+      if (!k || k === urlKey(pag.url) || vistosUrl.has(k) || descartados.has(idDe(p.url)) || vistosNombre.has(norm(p.nombre))) continue;
       if (!candidatos.has(k)) candidatos.set(k, { ...p, nombre: limpia(p.nombre), imp: p.imprescindible === true || esImp(p.nombre) });
     }
-  }
-  // Priority: must-dos, then best pre-score, then soonest
+  });
+
+  // Priority: must-dos, then best pre-score, then soonest. Skip pages we are not allowed to read.
   const cola = [...candidatos.values()].sort((a, b) => (b.imp ? 1 : 0) - (a.imp ? 1 : 0) || (Number(b.nota_previa) || 0) - (Number(a.nota_previa) || 0) || String(a.fecha_aprox || '9999').localeCompare(String(b.fecha_aprox || '9999')));
   informe.candidatos = cola.length;
-  const elegidos = cola.filter(c => c.imp || (Number(c.nota_previa) || 0) >= NOTA_MIN - 1).slice(0, MAX_PLANES);
+  const elegidos = [];
+  for (const c of cola) {
+    if (elegidos.length >= MAX_PLANES) break;
+    if (!c.imp && (Number(c.nota_previa) || 0) < NOTA_MIN - 1) continue;
+    if (await permitido(c.url)) elegidos.push(c);
+  }
 
-  // 2. Read each plan's own page
+  // 3. Read each plan's own page
   const filas = [], desc = [], motivos = {};
   await enParalelo(elegidos, 4, async c => {
     let res;
@@ -443,8 +472,8 @@ async function main() {
   unicas.forEach(f => cats[f.categoria] = (cats[f.categoria] || 0) + 1);
   const coste = uso.busquedas * 0.01 + uso.in / 1e6 * 0.10 + uso.out / 1e6 * 0.50;
   console.log('===== REPORT · AGENDA READER =====');
-  console.log(`Agenda pages found by search: ${informe.encontradas.length} | different readable pages: ${agendas.length}`);
-  console.log('Agenda pages read:', informe.agendas.join(' | ') || 'none');
+  console.log(`Agenda pages found by search: ${informe.encontradas} | agenda pages read: ${informe.agendas.length} of ${agendas.length}`);
+  console.log('Plans found per agenda:', informe.agendas.join(' | ') || 'none');
   if (informe.bloqueadas.size) console.log('Could not read:', [...informe.bloqueadas].join(' | '));
   console.log(`New candidates: ${informe.candidatos} | Plan pages read: ${informe.leidas} (failed ${informe.fallos})`);
   console.log(`Rejected → list pages: ${informe.listas} | low score: ${informe.nota} | out of dates: ${informe.fecha} | too expensive: ${informe.precio} | outside Paris: ${informe.fuera}`);
