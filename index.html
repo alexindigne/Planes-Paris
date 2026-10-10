@@ -196,7 +196,7 @@ textarea{width:100%;border:1px solid var(--bd);border-radius:10px;padding:10px;f
 <script>
 const NOMBRE='Planinparis';
 const URL_='https://cmtrtvpanfhrbpdztkvn.supabase.co', KEY='sb_publishable_UZAKaPQsCY6pEXo086lXOw_0FyRqEzE';
-const SELECCION=7;            // minimum score for "Our pick"
+const SELECCION=8;            // minimum score for "Our pick"
 const MOSTRAR_IDIOMAS=false;  // language selector (for the future)
 const CAT={'música':'#7c3aed','expo':'#2563eb','pop-up':'#db2777','mercado':'#16a34a','festival':'#ea580c','cine':'#dc2626','aire libre':'#0d9488','otro':'#6b7280'};
 const CATS=Object.keys(CAT);
@@ -224,7 +224,9 @@ const I=(n,s=18)=>`<svg class="ic" width="${s}" height="${s}" viewBox="0 0 24 24
 const STAR=(on,s=16)=>`<svg class="st${on?' on':''}" width="${s}" height="${s}" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.8l2.8 5.9 6.4.8-4.7 4.5 1.2 6.4L12 17.3l-5.7 3.1 1.2-6.4-4.7-4.5 6.4-.8z"/></svg>`;
 const estrellas=(n,s=16)=>[1,2,3,4,5].map(i=>STAR(i<=n,s)).join('');
 const T={
- en:{loc:'en-GB',buscar:'Search a plan or a place…',filtros:'Filters',hoy:'Today',manana:'Tomorrow',finde:'This weekend',gratis:'Free',guardados:'Saved',cuando:'When?',precio:'Price',todo:'All',categorias:'Categories',verN:'Show {n} plans',borrarTodo:'Clear all',dia:'day',dias:'days',bloqueA:'Now or never',bloqueB:'Anytime',g_hoy:'Today',g_man:'Tomorrow',g_finde:'This weekend',g_prox:'Coming days',vacio:'No plans match these filters',vacioSub:'Try other dates or categories.',quitar:'Clear filters',error:"Couldn't load the plans.",cargando:'Loading…',info:'More info',compartir:'Share',reportar:'Report an issue with this plan',hasta:'Until ',free:'Free',preg:"What's wrong with this plan? (cancelled, wrong date or price…)",gracias:"Thanks! We'll look into it.",noenv:"Couldn't send, please try again later.",mas:'See more',menos:'See less',del:'',al:' – ',y:' & ',prox:'Next: ',ver:'See plan',ampliar:'Expand',nuevo:'New',ultimo:'Last day',pronto:'Ending soon',seleccion:'Our pick',selChip:'Our picks',soloSel:'Our picks only',imp:'Must-do',impTit:'Must-dos',impSub:'these weeks',valorar:'Been there? Rate it',comPh:'Tell us about it (optional)',enviar:'Send',eligeEst:'Pick 1 to 5 stars',graciasVoto:'Thanks for your rating!',yaVotado:"You've already rated this plan",tuVoto:'Your rating',desde:'You can rate it from ',opiniones:'Reviews',compartirTxt:'Check out this plan',f_cuando:'When',f_horas:'Hours',f_donde:'Where',f_precio:'Price',f_org:'By',b_expect:'What to expect',b_tips:'Good to know',b_ideal:'Ideal for',dn:['M','T','W','T','F','S','S'],cats:{'música':'Music','expo':'Exhibition','pop-up':'Pop-up','mercado':'Market','festival':'Festival','cine':'Cinema','aire libre':'Outdoors','otro':'Other'}}
+ en:{buscar:'Search a plan or a place…',filtros:'Filters',hoy:'Today',manana:'Tomorrow',finde:'This weekend',gratis:'Free',guardados:'Saved',cuando:'When?',precio:'Price',todo:'All',categorias:'Categories',verN:'Show {n} plans',borrarTodo:'Clear all',dia:'day',dias:'days',bloqueA:'Now or never',bloqueB:'Anytime',g_hoy:'Today',g_man:'Tomorrow',g_finde:'This weekend',g_prox:'Coming days',vacio:'No plans match these filters',vacioSub:'Try other dates or categories.',quitar:'Clear filters',error:"Couldn't load the plans.",cargando:'Loading…',info:'More info',compartir:'Share',reportar:'Report an issue with this plan',hasta:'Until ',free:'Free',preg:"What's wrong with this plan? (cancelled, wrong date or price…)",gracias:"Thanks! We'll look into it.",noenv:"Couldn't send, please try again later.",mas:'See more',menos:'See less',y:' & ',prox:'Next: ',ver:'See plan',ampliar:'Expand',nuevo:'New',ultimo:'Last day',pronto:'Ending soon',seleccion:'Our pick',selChip:'Our picks',soloSel:'Our picks only',imp:'Must-do',impTit:'Must-dos',impSub:'these weeks',valorar:'Been there? Rate it',comPh:'Tell us about it (optional)',enviar:'Send',eligeEst:'Pick 1 to 5 stars',graciasVoto:'Thanks for your rating!',yaVotado:"You've already rated this plan",tuVoto:'Your rating',desde:'You can rate it from ',opiniones:'Reviews',compartirTxt:'Check out this plan',f_cuando:'When',f_horas:'Hours',f_donde:'Where',f_precio:'Price',f_org:'By',b_expect:'What to expect',b_tips:'Good to know',b_ideal:'Ideal for',
+  ds:['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],ms:['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],ml:['January','February','March','April','May','June','July','August','September','October','November','December'],dn:['M','T','W','T','F','S','S'],
+  cats:{'música':'Music','expo':'Exhibition','pop-up':'Pop-up','mercado':'Market','festival':'Festival','cine':'Cinema','aire libre':'Outdoors','otro':'Other'}}
 };
 const IDIOMAS=[['en','English']];
 let LANG='en';
@@ -236,6 +238,8 @@ const e=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt
 const iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
 const parse=s=>{const[y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d)};
 const HOY=iso(new Date());
+// One single date format everywhere: "Sat 10 Oct"
+const fd=s=>{const d=parse(String(s).slice(0,10));return `${t('ds')[d.getDay()]} ${d.getDate()} ${t('ms')[d.getMonth()]}`};
 const leer=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch(_){return d}};
 const guardar=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(_){}};
 let DEV=leer('dev',null);
@@ -257,35 +261,32 @@ const proxima=p=>{const f=futuras(p);if(f&&f.length)return f[0];return(!p.fecha_
 const ultima=p=>{const f=futuras(p);return f&&f.length?f[f.length-1]:p.fecha_fin};
 const enDia=(p,d)=>{const f=futuras(p);if(f)return f.includes(d);return d>=(p.fecha_inicio||'0000-00-00')&&d<=(p.fecha_fin||p.fecha_inicio||'9999-12-31')};
 const diasEntre=(a,b)=>(parse(b)-parse(a))/864e5;
-const corta=s=>parse(s).toLocaleDateString(t('loc'),{day:'numeric',month:'short'});
-const larga=s=>parse(s).toLocaleDateString(t('loc'),{weekday:'short',day:'numeric',month:'short'});
-const completa=s=>parse(s).toLocaleDateString(t('loc'),{weekday:'long',day:'numeric',month:'long'});
-const nombreDia=d=>new Date(2024,0,7+d).toLocaleDateString(t('loc'),{weekday:'short'});
 const listaY=a=>a.length<2?a.join(''):a.slice(0,-1).join(', ')+t('y')+a[a.length-1];
-const may=s=>s.charAt(0).toUpperCase()+s.slice(1);
 const sinAc=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
 const gmaps=p=>'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(p.lugar);
+// Short line (cards, carousel, map)
 function fechas(p){
  const f=futuras(p);
- if(f&&f.length)return f.length===1||f[0]===HOY?may(larga(f[0])):t('prox')+larga(f[0]);
+ if(f&&f.length)return f.length===1||f[0]===HOY?fd(f[0]):t('prox')+fd(f[0]);
  const i=p.fecha_inicio,fi=p.fecha_fin;
  if(!i&&!fi)return '';
- if(!fi||i===fi)return may(larga(i||fi));
- if(!i||p.tipo==='largo')return t('hasta')+corta(fi);
- return may(larga(i))+' – '+larga(fi);
+ if(!fi||i===fi)return fd(i||fi);
+ if(!i||p.tipo==='largo')return t('hasta')+fd(fi);
+ return fd(i)+' – '+fd(fi);
 }
+// Full line (open card)
 function fechasLargas(p){
  const f=futuras(p);
  if(f&&f.length){
-  if(f.length<=6)return may(f.map(larga).join(', '));
+  if(f.length<=4)return f.map(fd).join(', ');
   const ds=[...new Set(f.map(x=>parse(x).getDay()))].sort((a,b)=>((a+6)%7)-((b+6)%7));
-  return may(listaY(ds.map(nombreDia)))+' · '+t('del')+corta(f[0])+t('al')+corta(f[f.length-1]);
+  return listaY(ds.map(d=>t('ds')[d]))+' · '+fd(f[0])+' – '+fd(f[f.length-1]);
  }
  const i=p.fecha_inicio,fi=p.fecha_fin;
  if(!i&&!fi)return '';
- if(!fi||i===fi)return may(completa(i||fi));
- if(!i)return t('hasta')+completa(fi);
- return may(t('del')+completa(i)+t('al')+completa(fi));
+ if(!fi||i===fi)return fd(i||fi);
+ if(!i)return t('hasta')+fd(fi);
+ return fd(i)+' – '+fd(fi);
 }
 function finde(){
  const d=new Date(),w=d.getDay(),out=[];
@@ -315,12 +316,12 @@ function badges(p){
  else if(!b.length&&p.creado_en&&Date.now()-new Date(p.creado_en)<48*3600e3)b.push(`<span class="bd nuevo">${t('nuevo')}</span>`);
  return b.join('');
 }
-function ratHTML(id){const r=st.rat[id];return r&&r.total?`<span class="sep">·</span><i>${STAR(true,12)}${Number(r.media).toLocaleString(t('loc'),{minimumFractionDigits:1,maximumFractionDigits:1})}</i><small>(${r.total})</small>`:''}
+function ratHTML(id){const r=st.rat[id];return r&&r.total?`<span class="sep">·</span><i>${STAR(true,12)}${Number(r.media).toFixed(1)}</i><small>(${r.total})</small>`:''}
 function valHTML(p){
  const mio=misVotos[p.id];
  if(mio)return `<div class="vt">${t('tuVoto')} <span>${estrellas(mio,18)}</span></div>`;
  const ini=Array.isArray(p.fechas)&&p.fechas.length?p.fechas[0]:p.fecha_inicio;
- if(ini&&ini>HOY)return `<div class="vt mu">${STAR(false,14)} ${t('desde')}${corta(ini)}</div>`;
+ if(ini&&ini>HOY)return `<div class="vt mu">${STAR(false,14)} ${t('desde')}${fd(ini)}</div>`;
  const s=selEst[p.id]||0;
  return `<div class="vt">${t('valorar')}</div><div class="stars">${[1,2,3,4,5].map(n=>`<button data-star="${n}" data-pid="${p.id}" aria-label="${n}">${STAR(n<=s,30)}</button>`).join('')}</div>
  <textarea id="txt-${p.id}" maxlength="500" rows="3" placeholder="${e(t('comPh'))}"></textarea><button class="btn pri" data-enviar="${p.id}">${t('enviar')}</button>`;
@@ -373,7 +374,7 @@ function pintarCabecera(){
 function pintarCal(){
  const el=$('cal');if(!el)return;
  const y=st.mes.getFullYear(),mo=st.mes.getMonth(),prim=(new Date(y,mo,1).getDay()+6)%7,n=new Date(y,mo+1,0).getDate();
- let h=`<div class="cal-h"><button data-mes="-1">‹</button><b>${st.mes.toLocaleDateString(t('loc'),{month:'long',year:'numeric'})}</b><button data-mes="1">›</button></div><div class="cal-g">`
+ let h=`<div class="cal-h"><button data-mes="-1">‹</button><b>${t('ml')[mo]} ${y}</b><button data-mes="1">›</button></div><div class="cal-g">`
   +t('dn').map(d=>`<span class="dn">${d}</span>`).join('')+'<span></span>'.repeat(prim);
  for(let d=1;d<=n;d++){const s=iso(new Date(y,mo,d));h+=`<button class="dia${st.dias.has(s)?' on':''}${s===HOY?' hoy':''}" data-dia="${s}"${s<HOY?' disabled':''}>${d}</button>`}
  el.innerHTML=h+'</div>';
@@ -428,7 +429,7 @@ async function cargarComs(id){
  try{
   const r=await api(`comentarios_publicos?plan_id=eq.${id}&order=creado_en.desc&limit=20`);if(!r.ok)return;
   const d=await r.json(),box=$('coms-'+id);if(!box)return;
-  box.innerHTML=d.length?`<h4>${t('opiniones')}</h4>`+d.map(c=>`<div class="com"><div class="s">${estrellas(c.estrellas,13)}<em>· ${new Date(c.creado_en).toLocaleDateString(t('loc'),{day:'numeric',month:'short'})}</em></div>${e(c.comentario)}</div>`).join(''):'';
+  box.innerHTML=d.length?`<h4>${t('opiniones')}</h4>`+d.map(c=>`<div class="com"><div class="s">${estrellas(c.estrellas,13)}<em>· ${fd(iso(new Date(c.creado_en)))}</em></div>${e(c.comentario)}</div>`).join(''):'';
  }catch(_){}
 }
 function pintarLista(){
