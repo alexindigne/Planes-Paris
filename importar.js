@@ -4,7 +4,7 @@ const DIAS_ANTELACION = 21;    // plans starting in the next 3 weeks (or already
 const MAX_POR_EJECUCION = 250; // max new events the AI reviews per run
 const PRECIO_MAX = 15;         // max € for paid plans
 const NOTA_MIN = 6;            // minimum score to get in ("Our pick" starts at 8)
-const IMPRESCINDIBLES = ['Fête de la Musique', 'Fête des Vendanges de Montmartre', 'Nuit Blanche', 'Journées du Patrimoine', 'Journées Européennes du Patrimoine', 'Paris Plages', 'Fashion Week', 'Marché de Noël', 'Marchés de Noël', '14 juillet', 'Techno Parade', 'Foire du Trône', 'Nuit des Musées', 'Nouvel An chinois'];
+const IMPRESCINDIBLES = ['Fête de la Musique', 'Fête des Vendanges de Montmartre', 'Nuit Blanche', 'Journées du Patrimoine', 'Journées Européennes du Patrimoine', 'Paris Plages', 'Fashion Week', 'Art Basel', 'Paris Photo', 'Paris Design Week', 'Marché de Noël', 'Marchés de Noël', '14 juillet', 'Techno Parade', 'Foire du Trône', 'Nuit des Musées', 'Nouvel An chinois'];
 // =======================================
 
 const U = process.env.SUPABASE_URL;
