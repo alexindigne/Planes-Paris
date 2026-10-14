@@ -8,6 +8,7 @@ const NOTA_MIN = 5;            // minimum score (0-10) to get in
 const PESOS = { original: 1, ambiente: 1, encaje: 1, oportunidad: 1, calidad: 1 };
 const FOTOS = true;            // use the event's official photo (checked by the AI)
 const MAX_REVALORAR = 300;     // plans already in the app re-scored per run with the criteria system
+const NOTA_SIN_FOTO = 8;       // plans with this score or more (and must-dos) are published even without a photo
 const IMPRESCINDIBLES = ['Fête de la Musique', 'Fête des Vendanges de Montmartre', 'Nuit Blanche', 'Journées du Patrimoine', 'Journées Européennes du Patrimoine', 'Paris Plages', 'Fashion Week', 'Marché de Noël', 'Marchés de Noël', '14 juillet', 'Techno Parade', 'Foire du Trône', 'Nuit des Musées', 'Nouvel An chinois', 'Art Basel', 'Paris Photo', 'Paris Design Week'];
 // =======================================
 
@@ -212,7 +213,8 @@ async function fotoValida(img, p, ctx, origen, url) {
   for (let intento = 0; intento < 2; intento++) {
     try {
       const { model, ...body } = pregunta;
-      const t = textoDe(await claude(body)).trim().toUpperCase();
+      const j = await claude(body), t = textoDe(j).trim().toUpperCase();
+      if (!t) console.error(`Photo check: empty answer (stop: ${j.stop_reason}, blocks: ${j.content.map(b => b.type).join(',') || 'none'})`);
       if (/\bYES\b/.test(t)) return true;
       if (/\bNO\b/.test(t)) {
         noFoto('AI: not right for this plan', ctx);
@@ -297,23 +299,23 @@ async function revalorar() {
   }
 }
 
-// A plan without a photo is never published: it waits in Pending ("no photo") until it gets one
+// Plans below NOTA_SIN_FOTO are only published with a photo: until they get one they wait in Pending ("no photo").
+// Good plans (score NOTA_SIN_FOTO or more, or must-dos) are published anyway with the category cover.
 const otrosMotivos = mot => String(mot || '').split(', ').filter(x => x && x !== 'no photo');
+const fotoObligatoria = p => !p.imprescindible && (Number(p.nota) || 0) < NOTA_SIN_FOTO;
 function cambioFoto(p, f, revisada) {
-  const otros = otrosMotivos(p.motivo);
-  if (f) {
-    const c = { foto: f.foto, foto_credito: f.credito, foto_revisada: true };
-    if (String(p.motivo || '').includes('no photo')) { c.motivo = otros.join(', ') || null; c.estado = otros.length ? 'pendiente' : 'aprobado'; }
-    return c;
-  }
-  return { foto_revisada: revisada, estado: 'pendiente', motivo: [...otros, 'no photo'].join(', ') };
+  const otros = otrosMotivos(p.motivo), teniaMotivo = String(p.motivo || '').includes('no photo');
+  const c = f ? { foto: f.foto, foto_credito: f.credito, foto_revisada: true } : { foto_revisada: revisada };
+  if (!f && fotoObligatoria(p)) return { ...c, estado: 'pendiente', motivo: [...otros, 'no photo'].join(', ') };
+  if (teniaMotivo) { c.motivo = otros.join(', ') || null; c.estado = otros.length ? 'pendiente' : 'aprobado'; }
+  return c;
 }
 
 // ===== OFFICIAL PHOTO FOR PLANS ALREADY IN THE APP (each plan is tried once) =====
 async function fotosPendientes(todosOD) {
   if (!FOTOS) return;
   let planes;
-  try { planes = await (await sb('planes?select=id,fuente_id,nombre,subtitulo,categoria,lugar,estado,motivo&fuente=eq.opendata&foto=is.null&foto_revisada=is.false&limit=400')).json(); }
+  try { planes = await (await sb('planes?select=id,fuente_id,nombre,subtitulo,categoria,lugar,estado,motivo,nota,imprescindible&fuente=eq.opendata&foto=is.null&foto_revisada=is.false&limit=400')).json(); }
   catch (err) { console.error('Photos for older plans skipped:', err.message); return; }
   await enParalelo(planes, 4, async p => {
     const e = todosOD.get(p.fuente_id), ctx = {};
@@ -457,7 +459,7 @@ async function main() {
     const foto = await elegirFoto(p._foto, p, false, ctx);
     if (foto) { p.foto = foto; p.foto_credito = p._credito; informe.fotos++; } else informe.fotosNo++;
     p.foto_revisada = !!foto || !ctx.reintentar;
-    if (!foto) { p.estado = 'pendiente'; p.motivo = [...otrosMotivos(p.motivo), 'no photo'].join(', '); motivos['no photo'] = (motivos['no photo'] || 0) + 1; }
+    if (!foto && fotoObligatoria(p)) { p.estado = 'pendiente'; p.motivo = [...otrosMotivos(p.motivo), 'no photo'].join(', '); motivos['no photo'] = (motivos['no photo'] || 0) + 1; }
   });
   planes.forEach(p => { delete p._foto; delete p._credito; });
 
