@@ -36,6 +36,7 @@ const enParis = e => {
   const ll = e.lat_lon;
   return !!ll && ll.lat > 48.815 && ll.lat < 48.903 && ll.lon > 2.224 && ll.lon < 2.47;
 };
+const UA = 'Mozilla/5.0 (compatible; Planinparis/1.0; +https://alexindigne.github.io/Planes-Paris/)';
 const uso = { in: 0, out: 0 };
 const informe = { fotos: 0, fotosNo: 0, revaloradas: 0, fotosViejas: 0 };
 
@@ -100,7 +101,7 @@ const SCORING = `SCORING: rate 5 criteria with 0, 1 or 2 each, using only facts 
 - encaje: fit with OUR LINE. 2 = right in our line; 1 = broad appeal for a 25-35 local; 0 = off-topic, kids, seniors or a niche hobby.
 - oportunidad: does it only happen now? 2 = one-off, a few days, a launch, an opening night or a special edition; 1 = temporary, running for weeks; 0 = permanent or always available.
 - calidad: quality and value. Credible organiser, artist, brand or venue, good production, worth what it costs. 2 = high quality, or excellent value (free and great); 1 = decent; 0 = low effort, mainly an advert, or poor value.
-Use the whole range: give 2 when it is clearly true and 0 when it clearly isn't. Similar plans must get similar ratings.
+Be demanding: a 2 is only for plans that really stand out on that criterion (roughly the best fifth of what is on in Paris), and most plans get mostly 1s. Give 0 when it clearly isn't true. A typical good plan totals 5-6; 8 or more should be rare, a handful per week. Similar plans must get similar ratings.
 Also return "por_que": one short sentence (max 140 characters) saying why, e.g. "Free one-night DJ set on a rooftop by a well-known collective".
 We compute the final 0-10 score from your ratings.`;
 
@@ -172,23 +173,72 @@ const SOSPECHOSA = /logo|default|placeholder|avatar|favicon|sprite|blank|no-?ima
 const usadas = new Set(); // a photo already used by another plan = generic image
 const fotoOD = e => { const u = e && (e.cover_url || (e.cover && e.cover.url)); return /^https:\/\//i.test(u || '') ? u : null; };
 const creditoOD = e => limpia(e && e.cover_credit).slice(0, 60) || 'Paris.fr';
-const PROMPT_FOTO = `You check photos for a Paris events app. You receive one image and the plan it should illustrate.
-Answer {"ok": true} only if the image clearly shows THIS plan: its venue or space, the artworks, products, artists or performers, the event itself, or its official poster or visual.
-Answer {"ok": false} if it is a logo, a generic stock or city photo, a photo of a different event or place, a screenshot, a banner that is mostly text (an official event poster is fine), an advert for something else, or if you are not sure.
-Respond ONLY with the JSON object.`;
-async function fotoValida(url, p) {
+// We download each photo ourselves and check it: a real photo, big enough, not a banner, not repeated
+const tipoImagen = b => b[0] === 0xff && b[1] === 0xd8 ? 'image/jpeg' : b[0] === 0x89 && b[1] === 0x50 ? 'image/png' : b.toString('ascii', 0, 4) === 'RIFF' && b.toString('ascii', 8, 12) === 'WEBP' ? 'image/webp' : null;
+function medidas(b) {
   try {
-    const j = await claude({ max_tokens: 50, system: PROMPT_FOTO, messages: [{ role: 'user', content: [
-      { type: 'image', source: { type: 'url', url } },
+    if (b[0] === 0x89 && b[1] === 0x50) return { w: b.readUInt32BE(16), h: b.readUInt32BE(20) };
+    if (b[0] === 0xff && b[1] === 0xd8) {
+      for (let i = 2; i < b.length - 9;) {
+        if (b[i] !== 0xff) { i++; continue; }
+        const m = b[i + 1];
+        if (m >= 0xc0 && m <= 0xcf && m !== 0xc4 && m !== 0xc8 && m !== 0xcc) return { h: b.readUInt16BE(i + 5), w: b.readUInt16BE(i + 7) };
+        i += 2 + b.readUInt16BE(i + 2);
+      }
+    }
+    if (b.toString('ascii', 8, 12) === 'WEBP') {
+      const t = b.toString('ascii', 12, 16);
+      if (t === 'VP8 ') return { w: b.readUInt16LE(26) & 0x3fff, h: b.readUInt16LE(28) & 0x3fff };
+      if (t === 'VP8L') { const x = b.readUInt32LE(21); return { w: (x & 0x3fff) + 1, h: ((x >> 14) & 0x3fff) + 1 }; }
+      if (t === 'VP8X') return { w: 1 + b.readUIntLE(24, 3), h: 1 + b.readUIntLE(27, 3) };
+    }
+  } catch (_) {}
+  return null;
+}
+const motivosFoto = {};
+const noFoto = m => { motivosFoto[m] = (motivosFoto[m] || 0) + 1; return null; };
+const PROMPT_FOTO = `You check photos for a Paris events app. You receive one image and the plan it should illustrate.
+Answer {"ok": false, "motivo": "..."} ONLY if the image is clearly one of these: a logo or icon; a generic image of a website (a default share image); a photo of a clearly different event or place; a screenshot; a banner that is mostly text (an official poster or flyer of the event is fine); an image with a visible watermark or the logo of a media or agenda website printed on it.
+Otherwise answer {"ok": true}. Photos of the artworks, artists, performers, venue, products, food or the event's own visual are all fine, even if you can't verify every detail.
+Respond ONLY with the JSON object.`;
+async function fotoValida(img, p) {
+  try {
+    const j = await claude({ max_tokens: 60, system: PROMPT_FOTO, messages: [{ role: 'user', content: [
+      { type: 'image', source: { type: 'base64', media_type: img.tipo, data: img.buf.toString('base64') } },
       { type: 'text', text: `Plan: ${p.nombre}${p.subtitulo ? ' — ' + p.subtitulo : ''} (${p.categoria || 'otro'}), at ${p.lugar || 'Paris'}` }
     ] }] });
-    return leerJSON(textoDe(j), '{', '}').ok === true;
-  } catch (_) { return false; }
+    const r = leerJSON(textoDe(j), '{', '}');
+    if (r.ok === true) return true;
+    noFoto('AI: ' + (limpia(r.motivo).toLowerCase().slice(0, 40) || 'rejected'));
+    return false;
+  } catch (err) {
+    noFoto('AI check failed');
+    console.error('Photo check failed:', String(err.message).slice(0, 200));
+    return false;
+  }
 }
-async function elegirFoto(url, p) {
-  if (!FOTOS || !url || SOSPECHOSA.test(url) || usadas.has(url)) return null;
+// Returns the photo only if it passes every check; otherwise the app shows the category cover.
+// conIA = false for the official photo of Paris's agenda (it is the event's own image).
+async function elegirFoto(url, p, conIA = true) {
+  if (!FOTOS) return null;
+  if (!url) return noFoto('no photo found');
+  if (SOSPECHOSA.test(url)) return noFoto('looks like a logo');
+  if (usadas.has(url)) return noFoto('same photo as another plan');
   usadas.add(url);
-  return (await fotoValida(url, p)) ? url : null;
+  let buf;
+  try {
+    const r = await fetch(url, { headers: { 'User-Agent': UA, Accept: 'image/*' }, redirect: 'follow', signal: AbortSignal.timeout(15000) });
+    if (!r.ok) return noFoto('download failed');
+    buf = Buffer.from(await r.arrayBuffer());
+  } catch (_) { return noFoto('download failed'); }
+  const tipo = tipoImagen(buf);
+  if (!tipo) return noFoto('not a photo');
+  const m = medidas(buf);
+  if (buf.length < 12000 || (m && (m.w < 500 || m.h < 300))) return noFoto('too small');
+  if (m && (m.w / m.h > 3 || m.h / m.w > 2.2)) return noFoto('banner shape');
+  if (!conIA) return url;
+  if (buf.length > 4.5e6) return noFoto('too heavy to check');
+  return (await fotoValida({ buf, tipo }, p)) ? url : null;
 }
 
 const PROMPT = `${CRITERIA}
@@ -236,17 +286,26 @@ async function revalorar() {
       try { await sb(`planes?id=eq.${p.id}`, { method: 'PATCH', body: JSON.stringify(cambio) }); informe.revaloradas++; } catch (_) {}
     }
   }
+}
+
+// ===== OFFICIAL PHOTO FOR PLANS ALREADY IN THE APP (each plan is tried once) =====
+async function fotosPendientes() {
   if (!FOTOS) return;
-  await enParalelo(planes.filter(p => !p.foto && /^odp-/.test(p.fuente_id || '')), 4, async p => {
+  let planes;
+  try { planes = await (await sb('planes?select=id,fuente_id,nombre,subtitulo,categoria,lugar&fuente=eq.opendata&foto=is.null&foto_revisada=is.false&limit=400')).json(); }
+  catch (err) { console.error('Photos for older plans skipped:', err.message); return; }
+  await enParalelo(planes, 4, async p => {
+    let foto = null, e = null;
     try {
-      const q = new URLSearchParams({ where: `id = "${p.fuente_id.slice(4).replace(/"/g, '')}"`, limit: '1' });
-      const r = await fetch('https://opendata.paris.fr/api/explore/v2.1/catalog/datasets/que-faire-a-paris-/records?' + q);
-      if (!r.ok) return;
-      const e = (await r.json()).results?.[0];
-      const foto = await elegirFoto(fotoOD(e), p);
-      if (!foto) return;
-      await sb(`planes?id=eq.${p.id}`, { method: 'PATCH', body: JSON.stringify({ foto, foto_credito: creditoOD(e) }) });
-      informe.fotosViejas++;
+      if (/^odp-/.test(p.fuente_id || '')) {
+        const q = new URLSearchParams({ where: `id = "${p.fuente_id.slice(4).replace(/"/g, '')}"`, limit: '1' });
+        const r = await fetch('https://opendata.paris.fr/api/explore/v2.1/catalog/datasets/que-faire-a-paris-/records?' + q);
+        if (r.ok) { e = (await r.json()).results?.[0]; foto = await elegirFoto(fotoOD(e), p, false); }
+      }
+    } catch (_) {}
+    try {
+      await sb(`planes?id=eq.${p.id}`, { method: 'PATCH', body: JSON.stringify(foto ? { foto, foto_credito: creditoOD(e), foto_revisada: true } : { foto_revisada: true }) });
+      if (foto) informe.fotosViejas++;
     } catch (_) {}
   });
 }
@@ -377,16 +436,17 @@ async function main() {
 
   // Official photo, only if the AI confirms it shows the plan
   await enParalelo(planes, 4, async p => {
-    const foto = await elegirFoto(p._foto, p);
+    const foto = await elegirFoto(p._foto, p, false);
     if (foto) { p.foto = foto; p.foto_credito = p._credito; informe.fotos++; } else informe.fotosNo++;
   });
-  planes.forEach(p => { delete p._foto; delete p._credito; });
+  planes.forEach(p => { delete p._foto; delete p._credito; p.foto_revisada = true; });
 
   const ign = { Prefer: 'resolution=ignore-duplicates,return=minimal' };
   if (planes.length) await sb('planes?on_conflict=fuente_id', { method: 'POST', headers: ign, body: JSON.stringify(planes) });
   if (desc.length) await sb('descartados?on_conflict=fuente_id', { method: 'POST', headers: ign, body: JSON.stringify(desc) });
 
   await revalorar();
+  await fotosPendientes();
 
   const auto = planes.filter(p => p.estado === 'aprobado').length;
   const coste = uso.in / 1e6 * 0.10 + uso.out / 1e6 * 0.50;
@@ -396,6 +456,7 @@ async function main() {
   console.log(`Scores of new plans (score: how many): ${reparto(planes.map(p => p.nota || 0))}`);
   console.log(`Must-dos: ${planes.filter(p => p.imprescindible).length}`);
   console.log(`Photos → new plans with photo: ${informe.fotos} | without (no photo or failed the check): ${informe.fotosNo} | photos added to older plans: ${informe.fotosViejas}`);
+  console.log('Why some photos were not used:', JSON.stringify(motivosFoto));
   console.log(`Older plans re-scored with the criteria: ${informe.revaloradas}`);
   console.log(`Haiku tokens in ${uso.in} / out ${uso.out} → approx $${coste.toFixed(2)}`);
 }
