@@ -196,49 +196,55 @@ function medidas(b) {
   return null;
 }
 const motivosFoto = {};
-const noFoto = m => { motivosFoto[m] = (motivosFoto[m] || 0) + 1; return null; };
+const TECNICOS = ['download failed', 'AI check failed'];
+// ctx.reintentar = true when the failure was technical (try again next week)
+const noFoto = (m, ctx) => { motivosFoto[m] = (motivosFoto[m] || 0) + 1; if (ctx && TECNICOS.includes(m)) ctx.reintentar = true; return null; };
 const PROMPT_FOTO = `You check photos for a Paris events app. You receive one image and the plan it should illustrate.
-Answer {"ok": false, "motivo": "..."} ONLY if the image is clearly one of these: a logo or icon; a generic image of a website (a default share image); a photo of a clearly different event or place; a screenshot; a banner that is mostly text (an official poster or flyer of the event is fine); an image with a visible watermark or the logo of a media or agenda website printed on it.
-Otherwise answer {"ok": true}. Photos of the artworks, artists, performers, venue, products, food or the event's own visual are all fine, even if you can't verify every detail.
-Respond ONLY with the JSON object.`;
-async function fotoValida(img, p) {
+Answer NO only if the image is clearly one of these: a logo or icon; a generic image of a website (a default share image); a photo of a clearly different event or place; a screenshot; a banner that is mostly text (an official poster or flyer of the event is fine); an image with a visible watermark or the logo of a media or agenda website printed on it.
+Otherwise answer YES. Photos of the artworks, artists, performers, venue, products, food or the event's own visual are all fine, even if you can't verify every detail.
+Answer with one word: YES or NO.`;
+async function fotoValida(img, p, ctx) {
   try {
-    const j = await claude({ max_tokens: 60, system: PROMPT_FOTO, messages: [{ role: 'user', content: [
+    const j = await claude({ max_tokens: 10, system: PROMPT_FOTO, messages: [{ role: 'user', content: [
       { type: 'image', source: { type: 'base64', media_type: img.tipo, data: img.buf.toString('base64') } },
-      { type: 'text', text: `Plan: ${p.nombre}${p.subtitulo ? ' — ' + p.subtitulo : ''} (${p.categoria || 'otro'}), at ${p.lugar || 'Paris'}` }
+      { type: 'text', text: `Plan: ${p.nombre}${p.subtitulo ? ' — ' + p.subtitulo : ''} (${p.categoria || 'otro'}), at ${p.lugar || 'Paris'}. YES or NO?` }
     ] }] });
-    const r = leerJSON(textoDe(j), '{', '}');
-    if (r.ok === true) return true;
-    noFoto('AI: ' + (limpia(r.motivo).toLowerCase().slice(0, 40) || 'rejected'));
+    const t = textoDe(j).trim().toUpperCase();
+    if (/\bYES\b/.test(t)) return true;
+    if (/\bNO\b/.test(t)) { noFoto('AI: not right for this plan', ctx); return false; }
+    noFoto('AI check failed', ctx);
+    console.error('Photo check: unexpected answer:', t.slice(0, 80) || '(empty)');
     return false;
   } catch (err) {
-    noFoto('AI check failed');
+    noFoto('AI check failed', ctx);
     console.error('Photo check failed:', String(err.message).slice(0, 200));
     return false;
   }
 }
 // Returns the photo only if it passes every check; otherwise the app shows the category cover.
 // conIA = false for the official photo of Paris's agenda (it is the event's own image).
-async function elegirFoto(url, p, conIA = true) {
+async function elegirFoto(url, p, conIA = true, ctx = {}) {
   if (!FOTOS) return null;
-  if (!url) return noFoto('no photo found');
-  if (SOSPECHOSA.test(url)) return noFoto('looks like a logo');
-  if (usadas.has(url)) return noFoto('same photo as another plan');
-  usadas.add(url);
+  if (!url) return noFoto('no photo found', ctx);
+  if (SOSPECHOSA.test(url)) return noFoto('looks like a logo', ctx);
+  if (usadas.has(url)) return noFoto('same photo as another plan', ctx);
   let buf;
   try {
     const r = await fetch(url, { headers: { 'User-Agent': UA, Accept: 'image/*' }, redirect: 'follow', signal: AbortSignal.timeout(15000) });
-    if (!r.ok) return noFoto('download failed');
+    if (!r.ok) return noFoto('download failed', ctx);
     buf = Buffer.from(await r.arrayBuffer());
-  } catch (_) { return noFoto('download failed'); }
+  } catch (_) { return noFoto('download failed', ctx); }
   const tipo = tipoImagen(buf);
-  if (!tipo) return noFoto('not a photo');
+  if (!tipo) return noFoto('not a photo', ctx);
   const m = medidas(buf);
-  if (buf.length < 12000 || (m && (m.w < 500 || m.h < 300))) return noFoto('too small');
-  if (m && (m.w / m.h > 3 || m.h / m.w > 2.2)) return noFoto('banner shape');
-  if (!conIA) return url;
-  if (buf.length > 4.5e6) return noFoto('too heavy to check');
-  return (await fotoValida({ buf, tipo }, p)) ? url : null;
+  if (buf.length < 8000 || (m && (m.w < 400 || m.h < 250))) return noFoto('too small', ctx);
+  if (m && (m.w / m.h > 3 || m.h / m.w > 2.2)) return noFoto('banner shape', ctx);
+  if (conIA) {
+    if (buf.length > 4.5e6) return noFoto('too heavy to check', ctx);
+    if (!(await fotoValida({ buf, tipo }, p, ctx))) return null;
+  }
+  usadas.add(url);
+  return url;
 }
 
 const PROMPT = `${CRITERIA}
@@ -289,20 +295,16 @@ async function revalorar() {
 }
 
 // ===== OFFICIAL PHOTO FOR PLANS ALREADY IN THE APP (each plan is tried once) =====
-async function fotosPendientes() {
+async function fotosPendientes(todosOD) {
   if (!FOTOS) return;
   let planes;
   try { planes = await (await sb('planes?select=id,fuente_id,nombre,subtitulo,categoria,lugar&fuente=eq.opendata&foto=is.null&foto_revisada=is.false&limit=400')).json(); }
   catch (err) { console.error('Photos for older plans skipped:', err.message); return; }
   await enParalelo(planes, 4, async p => {
-    let foto = null, e = null;
-    try {
-      if (/^odp-/.test(p.fuente_id || '')) {
-        const q = new URLSearchParams({ where: `id = "${p.fuente_id.slice(4).replace(/"/g, '')}"`, limit: '1' });
-        const r = await fetch('https://opendata.paris.fr/api/explore/v2.1/catalog/datasets/que-faire-a-paris-/records?' + q);
-        if (r.ok) { e = (await r.json()).results?.[0]; foto = await elegirFoto(fotoOD(e), p, false); }
-      }
-    } catch (_) {}
+    const e = todosOD.get(p.fuente_id), ctx = {};
+    if (!e) return; // not in this week's agenda download: try again next run
+    const foto = await elegirFoto(fotoOD(e), p, false, ctx);
+    if (!foto && ctx.reintentar) return;
     try {
       await sb(`planes?id=eq.${p.id}`, { method: 'PATCH', body: JSON.stringify(foto ? { foto, foto_credito: creditoOD(e), foto_revisada: true } : { foto_revisada: true }) });
       if (foto) informe.fotosViejas++;
@@ -318,7 +320,7 @@ async function main() {
 
   const ya = new Set([...(await ids('planes')), ...(await ids('descartados'))]);
 
-  const nuevos = [];
+  const nuevos = [], todosOD = new Map();
   let fuera = false;
   for (let off = 0; off < 2000 && !fuera; off += 100) {
     const q = new URLSearchParams({
@@ -330,6 +332,7 @@ async function main() {
     if (!r.ok) throw new Error('OpenData ' + r.status + ': ' + await r.text());
     const { results } = await r.json();
     for (const e of results) {
+      if (e.id) todosOD.set('odp-' + e.id, e);
       const ini = e.date_start ? e.date_start.slice(0, 10) : null;
       if (ini && ini > limite) { fuera = true; break; }
       const id = 'odp-' + e.id;
@@ -436,17 +439,19 @@ async function main() {
 
   // Official photo, only if the AI confirms it shows the plan
   await enParalelo(planes, 4, async p => {
-    const foto = await elegirFoto(p._foto, p, false);
+    const ctx = {};
+    const foto = await elegirFoto(p._foto, p, false, ctx);
     if (foto) { p.foto = foto; p.foto_credito = p._credito; informe.fotos++; } else informe.fotosNo++;
+    p.foto_revisada = !!foto || !ctx.reintentar;
   });
-  planes.forEach(p => { delete p._foto; delete p._credito; p.foto_revisada = true; });
+  planes.forEach(p => { delete p._foto; delete p._credito; });
 
   const ign = { Prefer: 'resolution=ignore-duplicates,return=minimal' };
   if (planes.length) await sb('planes?on_conflict=fuente_id', { method: 'POST', headers: ign, body: JSON.stringify(planes) });
   if (desc.length) await sb('descartados?on_conflict=fuente_id', { method: 'POST', headers: ign, body: JSON.stringify(desc) });
 
   await revalorar();
-  await fotosPendientes();
+  await fotosPendientes(todosOD);
 
   const auto = planes.filter(p => p.estado === 'aprobado').length;
   const coste = uso.in / 1e6 * 0.10 + uso.out / 1e6 * 0.50;
