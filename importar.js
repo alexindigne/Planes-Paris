@@ -199,31 +199,34 @@ const motivosFoto = {};
 const TECNICOS = ['download failed', 'AI check failed'];
 // ctx.reintentar = true when the failure was technical (try again next week)
 const noFoto = (m, ctx) => { motivosFoto[m] = (motivosFoto[m] || 0) + 1; if (ctx && TECNICOS.includes(m)) ctx.reintentar = true; return null; };
-const PROMPT_FOTO = `You check photos for a Paris events app. You receive one image and the plan it should illustrate.
+const PROMPT_FOTO = `You check photos for a Paris events app. You receive one image, the plan it should illustrate and the web page the image comes from.
 Answer NO only if the image is clearly one of these: a logo or icon; a generic image of a website (a default share image); a photo of a clearly different event or place; a screenshot; a banner that is mostly text (an official poster or flyer of the event is fine); an image with a visible watermark or the logo of a media or agenda website printed on it.
-Otherwise answer YES. Photos of the artworks, artists, performers, venue, products, food or the event's own visual are all fine, even if you can't verify every detail.
+Otherwise answer YES. The main image of the event's own page (official site, venue, organiser or ticketing page) is almost always the event's visual: say YES unless it is clearly one of the cases above. Photos of the artworks, artists, performers, venue, products, food or the event's own visual are all fine.
 Answer with one word: YES or NO.`;
-async function fotoValida(img, p, ctx) {
-  try {
-    const j = await claude({ max_tokens: 10, system: PROMPT_FOTO, messages: [{ role: 'user', content: [
-      { type: 'image', source: { type: 'base64', media_type: img.tipo, data: img.buf.toString('base64') } },
-      { type: 'text', text: `Plan: ${p.nombre}${p.subtitulo ? ' — ' + p.subtitulo : ''} (${p.categoria || 'otro'}), at ${p.lugar || 'Paris'}. YES or NO?` }
-    ] }] });
-    const t = textoDe(j).trim().toUpperCase();
-    if (/\bYES\b/.test(t)) return true;
-    if (/\bNO\b/.test(t)) { noFoto('AI: not right for this plan', ctx); return false; }
-    noFoto('AI check failed', ctx);
-    console.error('Photo check: unexpected answer:', t.slice(0, 80) || '(empty)');
-    return false;
-  } catch (err) {
-    noFoto('AI check failed', ctx);
-    console.error('Photo check failed:', String(err.message).slice(0, 200));
-    return false;
+let rechazosLog = 0;
+async function fotoValida(img, p, ctx, origen, url) {
+  const pregunta = { model: MODELO, max_tokens: 20, system: PROMPT_FOTO, messages: [{ role: 'user', content: [
+    { type: 'image', source: { type: 'base64', media_type: img.tipo, data: img.buf.toString('base64') } },
+    { type: 'text', text: `Plan: ${p.nombre}${p.subtitulo ? ' — ' + p.subtitulo : ''} (${p.categoria || 'otro'}), at ${p.lugar || 'Paris'}.\nImage source: ${origen || 'unknown page'}.\nYES or NO?` }
+  ] }] };
+  for (let intento = 0; intento < 2; intento++) {
+    try {
+      const { model, ...body } = pregunta;
+      const t = textoDe(await claude(body)).trim().toUpperCase();
+      if (/\bYES\b/.test(t)) return true;
+      if (/\bNO\b/.test(t)) {
+        noFoto('AI: not right for this plan', ctx);
+        if (rechazosLog++ < 20) console.log(`Photo rejected by AI: "${p.nombre}" ← ${origen || ''} ${url || ''}`);
+        return false;
+      }
+    } catch (err) { console.error('Photo check failed:', String(err.message).slice(0, 200)); }
   }
+  noFoto('AI check failed', ctx);
+  return false;
 }
 // Returns the photo only if it passes every check; otherwise the app shows the category cover.
-// conIA = false for the official photo of Paris's agenda (it is the event's own image).
-async function elegirFoto(url, p, conIA = true, ctx = {}) {
+// conIA = false for official photos that need no AI check (Paris's agenda).
+async function elegirFoto(url, p, conIA = true, ctx = {}, origen = '') {
   if (!FOTOS) return null;
   if (!url) return noFoto('no photo found', ctx);
   if (SOSPECHOSA.test(url)) return noFoto('looks like a logo', ctx);
@@ -241,7 +244,7 @@ async function elegirFoto(url, p, conIA = true, ctx = {}) {
   if (m && (m.w / m.h > 3 || m.h / m.w > 2.2)) return noFoto('banner shape', ctx);
   if (conIA) {
     if (buf.length > 4.5e6) return noFoto('too heavy to check', ctx);
-    if (!(await fotoValida({ buf, tipo }, p, ctx))) return null;
+    if (!(await fotoValida({ buf, tipo }, p, ctx, origen, url))) return null;
   }
   usadas.add(url);
   return url;
@@ -294,19 +297,30 @@ async function revalorar() {
   }
 }
 
+// A plan without a photo is never published: it waits in Pending ("no photo") until it gets one
+const otrosMotivos = mot => String(mot || '').split(', ').filter(x => x && x !== 'no photo');
+function cambioFoto(p, f, revisada) {
+  const otros = otrosMotivos(p.motivo);
+  if (f) {
+    const c = { foto: f.foto, foto_credito: f.credito, foto_revisada: true };
+    if (String(p.motivo || '').includes('no photo')) { c.motivo = otros.join(', ') || null; c.estado = otros.length ? 'pendiente' : 'aprobado'; }
+    return c;
+  }
+  return { foto_revisada: revisada, estado: 'pendiente', motivo: [...otros, 'no photo'].join(', ') };
+}
+
 // ===== OFFICIAL PHOTO FOR PLANS ALREADY IN THE APP (each plan is tried once) =====
 async function fotosPendientes(todosOD) {
   if (!FOTOS) return;
   let planes;
-  try { planes = await (await sb('planes?select=id,fuente_id,nombre,subtitulo,categoria,lugar&fuente=eq.opendata&foto=is.null&foto_revisada=is.false&limit=400')).json(); }
+  try { planes = await (await sb('planes?select=id,fuente_id,nombre,subtitulo,categoria,lugar,estado,motivo&fuente=eq.opendata&foto=is.null&foto_revisada=is.false&limit=400')).json(); }
   catch (err) { console.error('Photos for older plans skipped:', err.message); return; }
   await enParalelo(planes, 4, async p => {
     const e = todosOD.get(p.fuente_id), ctx = {};
-    if (!e) return; // not in this week's agenda download: try again next run
-    const foto = await elegirFoto(fotoOD(e), p, false, ctx);
-    if (!foto && ctx.reintentar) return;
+    const foto = e ? await elegirFoto(fotoOD(e), p, false, ctx) : null;
+    if (!e) ctx.reintentar = true; // not in this week's download: try again next run
     try {
-      await sb(`planes?id=eq.${p.id}`, { method: 'PATCH', body: JSON.stringify(foto ? { foto, foto_credito: creditoOD(e), foto_revisada: true } : { foto_revisada: true }) });
+      await sb(`planes?id=eq.${p.id}`, { method: 'PATCH', body: JSON.stringify(cambioFoto(p, foto ? { foto, credito: creditoOD(e) } : null, !ctx.reintentar)) });
       if (foto) informe.fotosViejas++;
     } catch (_) {}
   });
@@ -443,6 +457,7 @@ async function main() {
     const foto = await elegirFoto(p._foto, p, false, ctx);
     if (foto) { p.foto = foto; p.foto_credito = p._credito; informe.fotos++; } else informe.fotosNo++;
     p.foto_revisada = !!foto || !ctx.reintentar;
+    if (!foto) { p.estado = 'pendiente'; p.motivo = [...otrosMotivos(p.motivo), 'no photo'].join(', '); motivos['no photo'] = (motivos['no photo'] || 0) + 1; }
   });
   planes.forEach(p => { delete p._foto; delete p._credito; });
 
