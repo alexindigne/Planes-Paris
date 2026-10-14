@@ -7,6 +7,8 @@ const NOTA_MIN = 5;              // minimum score (0-10) to get in
 const PESOS = { original: 1, ambiente: 1, encaje: 1, oportunidad: 1, calidad: 1 };
 const FOTOS = true;              // look for one photo per plan (checked by the AI)
 const MAX_REVALORAR = 300;       // plans already in the app re-scored per run with the criteria system
+const NOTA_BUSQUEDA_FOTO = 0;    // plans with this score or more get a web search for their photo if nothing else works (0 = all)
+const MAX_BUSQUEDAS_FOTO = 15;   // max of those searches per run ($0.01 each), best plans first
 const MAX_PLANES = 100;          // max individual plan pages read per run (controls cost)
 const MAX_AGENDAS = 20;          // max agenda pages read per run
 const BUSQUEDAS = 6;             // web searches to find this week's agenda pages ($0.01 each)
@@ -275,31 +277,34 @@ const motivosFoto = {};
 const TECNICOS = ['download failed', 'AI check failed'];
 // ctx.reintentar = true when the failure was technical (try again next week)
 const noFoto = (m, ctx) => { motivosFoto[m] = (motivosFoto[m] || 0) + 1; if (ctx && TECNICOS.includes(m)) ctx.reintentar = true; return null; };
-const PROMPT_FOTO = `You check photos for a Paris events app. You receive one image and the plan it should illustrate.
+const PROMPT_FOTO = `You check photos for a Paris events app. You receive one image, the plan it should illustrate and the web page the image comes from.
 Answer NO only if the image is clearly one of these: a logo or icon; a generic image of a website (a default share image); a photo of a clearly different event or place; a screenshot; a banner that is mostly text (an official poster or flyer of the event is fine); an image with a visible watermark or the logo of a media or agenda website printed on it.
-Otherwise answer YES. Photos of the artworks, artists, performers, venue, products, food or the event's own visual are all fine, even if you can't verify every detail.
+Otherwise answer YES. The main image of the event's own page (official site, venue, organiser or ticketing page) is almost always the event's visual: say YES unless it is clearly one of the cases above. Photos of the artworks, artists, performers, venue, products, food or the event's own visual are all fine.
 Answer with one word: YES or NO.`;
-async function fotoValida(img, p, ctx) {
-  try {
-    const j = await claude({ max_tokens: 10, system: PROMPT_FOTO, messages: [{ role: 'user', content: [
-      { type: 'image', source: { type: 'base64', media_type: img.tipo, data: img.buf.toString('base64') } },
-      { type: 'text', text: `Plan: ${p.nombre}${p.subtitulo ? ' — ' + p.subtitulo : ''} (${p.categoria || 'otro'}), at ${p.lugar || 'Paris'}. YES or NO?` }
-    ] }] });
-    const t = textoDe(j).trim().toUpperCase();
-    if (/\bYES\b/.test(t)) return true;
-    if (/\bNO\b/.test(t)) { noFoto('AI: not right for this plan', ctx); return false; }
-    noFoto('AI check failed', ctx);
-    console.error('Photo check: unexpected answer:', t.slice(0, 80) || '(empty)');
-    return false;
-  } catch (err) {
-    noFoto('AI check failed', ctx);
-    console.error('Photo check failed:', String(err.message).slice(0, 200));
-    return false;
+let rechazosLog = 0;
+async function fotoValida(img, p, ctx, origen, url) {
+  const pregunta = { model: MODELO, max_tokens: 20, system: PROMPT_FOTO, messages: [{ role: 'user', content: [
+    { type: 'image', source: { type: 'base64', media_type: img.tipo, data: img.buf.toString('base64') } },
+    { type: 'text', text: `Plan: ${p.nombre}${p.subtitulo ? ' — ' + p.subtitulo : ''} (${p.categoria || 'otro'}), at ${p.lugar || 'Paris'}.\nImage source: ${origen || 'unknown page'}.\nYES or NO?` }
+  ] }] };
+  for (let intento = 0; intento < 2; intento++) {
+    try {
+      const { model, ...body } = pregunta;
+      const t = textoDe(await claude(body)).trim().toUpperCase();
+      if (/\bYES\b/.test(t)) return true;
+      if (/\bNO\b/.test(t)) {
+        noFoto('AI: not right for this plan', ctx);
+        if (rechazosLog++ < 20) console.log(`Photo rejected by AI: "${p.nombre}" ← ${origen || ''} ${url || ''}`);
+        return false;
+      }
+    } catch (err) { console.error('Photo check failed:', String(err.message).slice(0, 200)); }
   }
+  noFoto('AI check failed', ctx);
+  return false;
 }
 // Returns the photo only if it passes every check; otherwise the app shows the category cover.
-// conIA = false for the official photo of Paris's agenda (it is the event's own image).
-async function elegirFoto(url, p, conIA = true, ctx = {}) {
+// conIA = false for official photos that need no AI check (Paris's agenda).
+async function elegirFoto(url, p, conIA = true, ctx = {}, origen = '') {
   if (!FOTOS) return null;
   if (!url) return noFoto('no photo found', ctx);
   if (SOSPECHOSA.test(url)) return noFoto('looks like a logo', ctx);
@@ -317,7 +322,7 @@ async function elegirFoto(url, p, conIA = true, ctx = {}) {
   if (m && (m.w / m.h > 3 || m.h / m.w > 2.2)) return noFoto('banner shape', ctx);
   if (conIA) {
     if (buf.length > 4.5e6) return noFoto('too heavy to check', ctx);
-    if (!(await fotoValida({ buf, tipo }, p, ctx))) return null;
+    if (!(await fotoValida({ buf, tipo }, p, ctx, origen, url))) return null;
   }
   usadas.add(url);
   return url;
@@ -380,19 +385,47 @@ async function fotoLugar(lugar) {
     return /^https:\/\//.test(src || '') && /\.(jpe?g|png|webp)$/i.test(src) ? src : null;
   } catch (_) { return null; }
 }
-// Best photo for a plan, in this order:
-// 1) the official visual (organiser, venue, brand or ticketing page)  2) the plan's own page, if it is not a media site with watermark
-// 3) a photo of the venue (Wikipedia). Each one must pass the AI check. Nothing passes → category cover.
+// The image a whole website uses on every page (its homepage image) is generic, not the event's
+const portadas = new Map();
+function fotoPortada(u) {
+  let o; try { o = new URL(u).origin; } catch (_) { return Promise.resolve(null); }
+  if (!portadas.has(o)) portadas.set(o, (async () => {
+    try { if (!(await permitido(o + '/'))) return null; const pag = await bajar(o + '/'); return fotoDe(pag.html, pag.url); } catch (_) { return null; }
+  })());
+  return portadas.get(o);
+}
+const tituloDe = html => limpia(metaDe(html, ['og:title']) || decode((html.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1] || '')).slice(0, 120);
+// Last resort for important plans: search the web for the event's official or ticketing page ($0.01 per search)
+let busquedasFoto = 0;
+async function buscarPaginaOficial(p) {
+  if (busquedasFoto >= MAX_BUSQUEDAS_FOTO) return [];
+  busquedasFoto++;
+  try {
+    const j = await claude({
+      max_tokens: 800,
+      messages: [{ role: 'user', content: `Find the OFFICIAL web page of this event in Paris (the organiser, venue, artist or brand page about it, or its ticketing page): "${p.nombre}"${p.subtitulo ? ' — ' + p.subtitulo : ''}, at ${p.lugar || 'Paris'}${p.fecha_inicio ? ', ' + p.fecha_inicio : ''}. Not a news site or an agenda. Return ONLY a JSON array with up to 3 URLs, best first, between <json> and </json>.` }],
+      tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 1, blocked_domains: [...MARCA_AGUA, 'facebook.com', 'instagram.com', 'tripadvisor.com'], user_location: { type: 'approximate', city: 'Paris', country: 'FR', timezone: 'Europe/Paris' } }]
+    });
+    return leerLista(textoDe(j)).map(x => typeof x === 'string' ? x : x && x.url).filter(u => /^https:\/\//i.test(u || ''));
+  } catch (err) { console.error('Photo search failed:', String(err.message).slice(0, 150)); return []; }
+}
 // Best photo for a plan, in this order (each must pass the checks; nothing passes → category cover):
 // 1) the official page the AI found  2) the same event in Paris's official agenda  3) ticketing / organiser / venue links on the page
-// 4) the plan's own page, if it is not a media site with watermark  5) a photo of the venue (Wikipedia)
+// 4) the plan's own page, if it is not a media site with watermark  5) for important plans, a web search for the official page
+// 6) a photo of the venue (Wikipedia)
 async function buscarFoto(p, fuente, ctx = {}) {
   if (!FOTOS) return null;
+  const probadas = new Set();
   const prueba = async u => {
+    if (probadas.has(u)) return null;
+    probadas.add(u);
     try {
       if (!(await permitido(u))) return null;
       const pag = await bajar(u);
-      const foto = await elegirFoto(fotoDe(pag.html, pag.url), p, true, ctx);
+      const f = fotoDe(pag.html, pag.url);
+      if (!f) return noFoto('no photo found', ctx);
+      if (f === await fotoPortada(pag.url)) return noFoto('generic image of the site', ctx);
+      const foto = await elegirFoto(f, p, true, ctx, `the main image of the page "${tituloDe(pag.html)}" on ${host(pag.url)}`);
       return foto ? { foto, credito: creditoDe(pag.html, pag.url) } : null;
     } catch (_) { return null; }
   };
@@ -403,10 +436,13 @@ async function buscarFoto(p, fuente, ctx = {}) {
   if (od) { const foto = await elegirFoto(od.foto, p, false, ctx); if (foto) return { foto, credito: od.credito }; }
   for (const u of lista.slice(1, 4)) { const f = await prueba(u); if (f) return f; }
   if (fuente.html && !conMarca(fuente.url)) {
-    const foto = await elegirFoto(fotoDe(fuente.html, fuente.url), p, true, ctx);
+    const foto = await elegirFoto(fotoDe(fuente.html, fuente.url), p, true, ctx, `the plan's page on ${host(fuente.url)}`);
     if (foto) return { foto, credito: creditoDe(fuente.html, fuente.url) };
   }
-  const foto = await elegirFoto(await fotoLugar(p.lugar), p, true, ctx);
+  if (p.imprescindible || (p.nota || 0) >= NOTA_BUSQUEDA_FOTO) {
+    for (const u of (await buscarPaginaOficial(p)).filter(valido).slice(0, 3)) { const f = await prueba(u); if (f) return f; }
+  }
+  const foto = await elegirFoto(await fotoLugar(p.lugar), p, true, ctx, 'a Wikipedia photo of the venue');
   return foto ? { foto, credito: 'Wikimedia Commons' } : null;
 }
 
@@ -541,11 +577,23 @@ async function revalorar() {
   }
 }
 
+// A plan without a photo is never published: it waits in Pending ("no photo") until it gets one
+const otrosMotivos = mot => String(mot || '').split(', ').filter(x => x && x !== 'no photo');
+function cambioFoto(p, f, revisada) {
+  const otros = otrosMotivos(p.motivo);
+  if (f) {
+    const c = { foto: f.foto, foto_credito: f.credito, foto_revisada: true };
+    if (String(p.motivo || '').includes('no photo')) { c.motivo = otros.join(', ') || null; c.estado = otros.length ? 'pendiente' : 'aprobado'; }
+    return c;
+  }
+  return { foto_revisada: revisada, estado: 'pendiente', motivo: [...otros, 'no photo'].join(', ') };
+}
+
 // ===== 3c. PHOTO FOR PLANS ALREADY IN THE APP (each plan is tried once) =====
 async function fotosPendientes() {
   if (!FOTOS) return;
   let planes;
-  try { planes = await (await sb('planes?select=id,nombre,subtitulo,categoria,lugar,url_fuente,fecha_inicio,fecha_fin&fuente=eq.web&foto=is.null&foto_revisada=is.false&limit=200')).json(); }
+  try { planes = await (await sb('planes?select=id,nombre,subtitulo,categoria,lugar,url_fuente,fecha_inicio,fecha_fin,nota,imprescindible,estado,motivo&fuente=eq.web&foto=is.null&foto_revisada=is.false&order=imprescindible.desc,nota.desc.nullslast&limit=200')).json(); }
   catch (err) { console.error('Photos for older plans skipped:', err.message); return; }
   await enParalelo(planes, 4, async p => {
     let f = null;
@@ -556,9 +604,9 @@ async function fotosPendientes() {
         f = await buscarFoto(p, { html: pag.html, url: pag.url, oficial: enlacesOficiales(pag.html, pag.url) }, ctx);
       } else f = await buscarFoto(p, { oficial: [] }, ctx);
     } catch (_) { ctx.reintentar = true; }
-    if (!f && ctx.reintentar) return; // technical failure: try again next run
+    // technical failure: hidden for now and tried again next run
     try {
-      await sb(`planes?id=eq.${p.id}`, { method: 'PATCH', body: JSON.stringify(f ? { foto: f.foto, foto_credito: f.credito, foto_revisada: true } : { foto_revisada: true }) });
+      await sb(`planes?id=eq.${p.id}`, { method: 'PATCH', body: JSON.stringify(cambioFoto(p, f, !ctx.reintentar)) });
       if (f) informe.fotosViejas++;
     } catch (_) {}
   });
@@ -708,8 +756,9 @@ async function main() {
     const nombre = limpia(d.nombre || c.nombre).slice(0, 80), subtitulo = d.subtitulo ? limpia(d.subtitulo).slice(0, 80) : null;
     const categoria = CATEGORIAS.includes(d.categoria) ? d.categoria : 'otro';
     const ctxF = {};
-    const f = await buscarFoto({ nombre, subtitulo, categoria, lugar, fecha_inicio: ini, fecha_fin: finReal }, res, ctxF), foto = f ? f.foto : null;
+    const f = await buscarFoto({ nombre, subtitulo, categoria, lugar, fecha_inicio: ini, fecha_fin: finReal, nota, imprescindible: imp }, res, ctxF), foto = f ? f.foto : null;
     informe[foto ? 'fotos' : 'fotosNo']++;
+    if (!foto) { m.push('no photo'); motivos['no photo'] = (motivos['no photo'] || 0) + 1; }
     filas.push({
       fuente_id: id,
       nombre,
@@ -759,7 +808,7 @@ async function main() {
   // ===== REPORT =====
   const pub = unicas.filter(f => f.estado === 'aprobado').length, cats = {};
   unicas.forEach(f => cats[f.categoria] = (cats[f.categoria] || 0) + 1);
-  const coste = uso.busquedas * 0.01 + uso.in / 1e6 * 0.10 + uso.out / 1e6 * 0.50;
+  const coste = (uso.busquedas) * 0.01 + uso.in / 1e6 * 0.10 + uso.out / 1e6 * 0.50;
   console.log('===== REPORT · AGENDA READER =====');
   console.log(`Agenda pages found by search: ${informe.encontradas} | agenda pages read: ${informe.agendas.length} of ${agendas.length}`);
   console.log('Plans found per agenda:', informe.agendas.join(' | ') || 'none');
@@ -773,6 +822,7 @@ async function main() {
   console.log(`Must-dos: ${unicas.filter(f => f.imprescindible).length}`);
   console.log(`Photos → new plans with photo: ${informe.fotos} | without (no photo or failed the check): ${informe.fotosNo} | photos added to older plans: ${informe.fotosViejas}`);
   console.log('Why some photos were not used:', JSON.stringify(motivosFoto));
+  console.log(`Web searches for photos: ${busquedasFoto}`);
   console.log(`Older plans re-scored with the criteria: ${informe.revaloradas}`);
   console.log(`Duplicates removed: ${dup}`);
   console.log(`Web searches: ${uso.busquedas} | Haiku tokens in ${uso.in} / out ${uso.out}`);
