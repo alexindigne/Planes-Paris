@@ -9,6 +9,7 @@ const FOTOS = true;              // look for one photo per plan (checked by the 
 const MAX_REVALORAR = 300;       // plans already in the app re-scored per run with the criteria system
 const NOTA_BUSQUEDA_FOTO = 0;    // plans with this score or more get a web search for their photo if nothing else works (0 = all)
 const MAX_BUSQUEDAS_FOTO = 15;   // max of those searches per run ($0.01 each), best plans first
+const NOTA_SIN_FOTO = 8;         // plans with this score or more (and must-dos) are published even without a photo
 const MAX_PLANES = 100;          // max individual plan pages read per run (controls cost)
 const MAX_AGENDAS = 20;          // max agenda pages read per run
 const BUSQUEDAS = 6;             // web searches to find this week's agenda pages ($0.01 each)
@@ -290,7 +291,8 @@ async function fotoValida(img, p, ctx, origen, url) {
   for (let intento = 0; intento < 2; intento++) {
     try {
       const { model, ...body } = pregunta;
-      const t = textoDe(await claude(body)).trim().toUpperCase();
+      const j = await claude(body), t = textoDe(j).trim().toUpperCase();
+      if (!t) console.error(`Photo check: empty answer (stop: ${j.stop_reason}, blocks: ${j.content.map(b => b.type).join(',') || 'none'})`);
       if (/\bYES\b/.test(t)) return true;
       if (/\bNO\b/.test(t)) {
         noFoto('AI: not right for this plan', ctx);
@@ -332,17 +334,31 @@ const MARCA_AGUA = ['sortiraparis.com', 'lebonbon.fr', 'parissecret.com', 'paris
 const conMarca = u => MARCA_AGUA.some(d => host(u).endsWith(d));
 const TICKETS = /shotgun\.live|dice\.fm|eventbrite\.|feverup\.com|billetweb\.fr|weezevent\.com|helloasso\.com|ra\.co\/events|ticketmaster\.fr|fnacspectacles\.com|digitick\.com|seetickets\.com/i;
 // Ticketing / official links found on the plan's page
-const NO_OFICIAL = /facebook\.com|instagram\.com|twitter\.com|\/\/x\.com|tiktok\.com|youtube\.com|youtu\.be|linkedin\.com|pinterest\.|google\.|goo\.gl|apple\.com|wa\.me|awin|booking\.com|tripadvisor|amazon\.|bit\.ly|wikipedia\.org|spotify\.com|deezer\.com|ratp\.fr|sncf|uber\.com/i;
-// Official links found on the plan's page: ticketing pages first, then other external sites (organiser, venue, brand)
+const NO_OFICIAL = /bsky\.app|threads\.net|mastodon|snapchat\.com|t\.me\/|telegram|whatsapp|discord|twitch\.tv|soundcloud\.com|apple\.co|podcasts|newsletter|facebook\.com|instagram\.com|twitter\.com|\/\/x\.com|tiktok\.com|youtube\.com|youtu\.be|linkedin\.com|pinterest\.|google\.|goo\.gl|apple\.com|wa\.me|awin|booking\.com|tripadvisor|amazon\.|bit\.ly|wikipedia\.org|spotify\.com|deezer\.com|ratp\.fr|sncf|uber\.com/i;
+// Ticketing links found on the plan's page
 function enlacesOficiales(html, base) {
-  const tickets = [], otros = [];
+  const out = [];
   for (const m of cuerpo(html).matchAll(/<a\b[^>]*href=["']([^"'#]+)["']/gi)) {
     let u; try { u = new URL(decode(m[1]), base).href; } catch (_) { continue; }
-    if (!/^https:\/\//i.test(u) || host(u) === host(base) || conMarca(u) || NO_OFICIAL.test(u)) continue;
-    const l = TICKETS.test(u) ? tickets : esAgenda(u) ? null : otros;
-    if (l && !l.includes(u)) l.push(u);
+    if (/^https:\/\//i.test(u) && TICKETS.test(u) && !out.includes(u)) out.push(u);
+    if (out.length >= 2) break;
   }
-  return [...tickets.slice(0, 2), ...otros.slice(0, 3)];
+  return out;
+}
+// The AI picks, among the external links of the article, the official page of the event (text only, very cheap)
+async function elegirEnlaces(nombre, html, base) {
+  const vistos = new Set(), lista = [];
+  for (const m of cuerpo(html).matchAll(/<a\b[^>]*href=["']([^"'#]+)["'][^>]*>([\s\S]*?)<\/a>/gi)) {
+    let u; try { u = new URL(decode(m[1]), base).href; } catch (_) { continue; }
+    if (!/^https:\/\//i.test(u) || host(u) === host(base) || conMarca(u) || NO_OFICIAL.test(u) || vistos.has(u)) continue;
+    vistos.add(u); lista.push({ n: lista.length, texto: limpia(decode(m[2])).slice(0, 60), url: u.slice(0, 160) });
+    if (lista.length >= 40) break;
+  }
+  if (!lista.length) return [];
+  try {
+    const j = await claude({ max_tokens: 60, messages: [{ role: 'user', content: `Event: "${nombre}". These are the external links of an article about it. Which ones are the event's OWN official pages (organiser, venue, artist or brand page about this event, or its ticketing page)? Ignore social networks, partners, ads, shops and links about other things.\n${JSON.stringify(lista)}\nRespond ONLY with a JSON array of up to 2 numbers "n", best first, or [] if none.` }] });
+    return leerLista(textoDe(j)).map(n => lista[Number(n)] && lista[Number(n)].url).filter(Boolean);
+  } catch (_) { return []; }
 }
 // Paris's official agenda (OpenData) loaded once: if the same event is there, we use its official photo
 const OD_URL = 'https://opendata.paris.fr/api/explore/v2.1/catalog/datasets/que-faire-a-paris-/records';
@@ -435,9 +451,15 @@ async function buscarFoto(p, fuente, ctx = {}) {
   const od = enOpenData(p);
   if (od) { const foto = await elegirFoto(od.foto, p, false, ctx); if (foto) return { foto, credito: od.credito }; }
   for (const u of lista.slice(1, 4)) { const f = await prueba(u); if (f) return f; }
-  if (fuente.html && !conMarca(fuente.url)) {
-    const foto = await elegirFoto(fotoDe(fuente.html, fuente.url), p, true, ctx, `the plan's page on ${host(fuente.url)}`);
-    if (foto) return { foto, credito: creditoDe(fuente.html, fuente.url) };
+  if (fuente.html) {
+    const f = fotoDe(fuente.html, fuente.url);
+    if (f && f !== await fotoPortada(fuente.url)) {
+      const origen = conMarca(fuente.url)
+        ? `the photo of the article about this plan on the media site ${host(fuente.url)}: answer NO if a watermark, a copyright text or the site's logo is printed on the image`
+        : `the plan's page on ${host(fuente.url)}`;
+      const foto = await elegirFoto(f, p, true, ctx, origen);
+      if (foto) return { foto, credito: creditoDe(fuente.html, fuente.url) };
+    }
   }
   if (p.imprescindible || (p.nota || 0) >= NOTA_BUSQUEDA_FOTO) {
     for (const u of (await buscarPaginaOficial(p)).filter(valido).slice(0, 3)) { const f = await prueba(u); if (f) return f; }
@@ -548,7 +570,9 @@ async function leerPlan(c) {
     messages: [{ role: 'user', content: `Expected plan: ${c.nombre}\nPage: ${pag.url}\n\n${texto}` }]
   });
   const d = leerJSON(textoDe(j), '{', '}');
-  return { d, url: pag.url, html: pag.html, oficial: [d.web_oficial, ...enlacesOficiales(pag.html, pag.url)] };
+  const tickets = enlacesOficiales(pag.html, pag.url);
+  const oficial = d.web_oficial ? [d.web_oficial, ...tickets] : [...tickets, ...await elegirEnlaces(c.nombre, pag.html, pag.url)];
+  return { d, url: pag.url, html: pag.html, oficial };
 }
 
 // ===== 3b. RE-SCORE PLANS ALREADY IN THE APP (once each) + photo for the ones without =====
@@ -577,16 +601,16 @@ async function revalorar() {
   }
 }
 
-// A plan without a photo is never published: it waits in Pending ("no photo") until it gets one
+// Plans below NOTA_SIN_FOTO are only published with a photo: until they get one they wait in Pending ("no photo").
+// Good plans (score NOTA_SIN_FOTO or more, or must-dos) are published anyway with the category cover.
 const otrosMotivos = mot => String(mot || '').split(', ').filter(x => x && x !== 'no photo');
+const fotoObligatoria = p => !p.imprescindible && (Number(p.nota) || 0) < NOTA_SIN_FOTO;
 function cambioFoto(p, f, revisada) {
-  const otros = otrosMotivos(p.motivo);
-  if (f) {
-    const c = { foto: f.foto, foto_credito: f.credito, foto_revisada: true };
-    if (String(p.motivo || '').includes('no photo')) { c.motivo = otros.join(', ') || null; c.estado = otros.length ? 'pendiente' : 'aprobado'; }
-    return c;
-  }
-  return { foto_revisada: revisada, estado: 'pendiente', motivo: [...otros, 'no photo'].join(', ') };
+  const otros = otrosMotivos(p.motivo), teniaMotivo = String(p.motivo || '').includes('no photo');
+  const c = f ? { foto: f.foto, foto_credito: f.credito, foto_revisada: true } : { foto_revisada: revisada };
+  if (!f && fotoObligatoria(p)) return { ...c, estado: 'pendiente', motivo: [...otros, 'no photo'].join(', ') };
+  if (teniaMotivo) { c.motivo = otros.join(', ') || null; c.estado = otros.length ? 'pendiente' : 'aprobado'; }
+  return c;
 }
 
 // ===== 3c. PHOTO FOR PLANS ALREADY IN THE APP (each plan is tried once) =====
@@ -601,7 +625,7 @@ async function fotosPendientes() {
     try {
       if (/^https:\/\//i.test(p.url_fuente || '') && await permitido(p.url_fuente)) {
         const pag = await bajar(p.url_fuente);
-        f = await buscarFoto(p, { html: pag.html, url: pag.url, oficial: enlacesOficiales(pag.html, pag.url) }, ctx);
+        f = await buscarFoto(p, { html: pag.html, url: pag.url, oficial: [...enlacesOficiales(pag.html, pag.url), ...await elegirEnlaces(p.nombre, pag.html, pag.url)] }, ctx);
       } else f = await buscarFoto(p, { oficial: [] }, ctx);
     } catch (_) { ctx.reintentar = true; }
     // technical failure: hidden for now and tried again next run
@@ -758,7 +782,7 @@ async function main() {
     const ctxF = {};
     const f = await buscarFoto({ nombre, subtitulo, categoria, lugar, fecha_inicio: ini, fecha_fin: finReal, nota, imprescindible: imp }, res, ctxF), foto = f ? f.foto : null;
     informe[foto ? 'fotos' : 'fotosNo']++;
-    if (!foto) { m.push('no photo'); motivos['no photo'] = (motivos['no photo'] || 0) + 1; }
+    if (!foto && fotoObligatoria({ nota, imprescindible: imp })) { m.push('no photo'); motivos['no photo'] = (motivos['no photo'] || 0) + 1; }
     filas.push({
       fuente_id: id,
       nombre,
