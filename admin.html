@@ -28,6 +28,20 @@ button{border:1px solid var(--bd);background:var(--card);color:var(--tx);border-
 .vacio{text-align:center;color:var(--mu);padding:30px 0}
 #err{color:var(--ko);font-size:14px}
 a{color:var(--tx);font-size:14px}
+.foto{position:relative;margin:-14px -14px 10px;height:180px;border-radius:14px 14px 0 0;overflow:hidden;background:#eee}
+.foto img{width:100%;height:100%;object-fit:cover;display:block}
+.foto small{position:absolute;left:8px;bottom:8px;background:#000a;color:#fff;font-size:11px;padding:3px 7px;border-radius:6px}
+.foto button{position:absolute;right:8px;top:8px;background:#fff;font-size:13px}
+.nota{display:flex;align-items:baseline;gap:10px;margin:10px 0 2px}
+.nota b{font-size:26px;line-height:1}
+.crit{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
+.crit span{font-size:12px;background:#f1efe9;border-radius:8px;padding:4px 8px}
+.pq{font-size:13px;color:var(--mu);font-style:italic;margin:4px 0 0}
+.tu{display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-top:10px;font-size:13px;color:var(--mu)}
+.tu button{width:34px;height:34px;padding:0;font-size:14px}
+.tu button.on{background:var(--tx);color:#fff;border-color:var(--tx)}
+.orden{display:flex;gap:6px;align-items:center;font-size:13px;color:var(--mu);margin-bottom:12px}
+.orden button.on{background:var(--tx);color:#fff;border-color:var(--tx)}
 </style></head><body>
 <header><h1>Panel de revisión</h1><button id="salir" hidden>Salir</button></header>
 <main>
@@ -39,11 +53,12 @@ a{color:var(--tx);font-size:14px}
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 const URL_='https://cmtrtvpanfhrbpdztkvn.supabase.co', KEY='sb_publishable_UZAKaPQsCY6pEXo086lXOw_0FyRqEzE';
+const CRIT=[['original','Original'],['ambiente','Ambiente'],['encaje','Encaje'],['oportunidad','Oportunidad'],['calidad','Calidad']];
 const db=supabase.createClient(URL_,KEY);
 const $=id=>document.getElementById(id);
 const e=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const cache=new Map();
-let tab='pendiente';
+let tab='pendiente',orden='fecha';
 async function iniciar(){
  const {data:{session}}=await db.auth.getSession();
  $('login').hidden=!!session;$('app').hidden=!session;$('salir').hidden=!session;
@@ -65,7 +80,7 @@ async function cargar(){
   const {data,error}=await db.from('reportes').select('id,motivo,creado_en,planes(id,nombre,fuente_id,fecha_fin)').order('creado_en',{ascending:false});
   if(error)return fallo(error);
   data.forEach(r=>r.planes&&cache.set(r.planes.id,r.planes));
-  $('lista').innerHTML=data.length?data.map(r=>`<div class="card"><h2>${e(r.planes?r.planes.nombre:'Plan ya borrado')}</h2><p class="d">${e(r.motivo)}</p><div class="meta">${new Date(r.creado_en).toLocaleString('es-ES')}</div><div class="acc">${r.planes?`<button class="rojo" data-desc="${r.planes.id}">Quitar plan</button>`:''}<button data-ign="${r.id}">Ignorar</button></div></div>`).join(''):'<p class="vacio">No hay reportes 🎉</p>';
+  $('lista').innerHTML=data.length?data.map(r=>`<div class="card"><h2>${e(r.planes?r.planes.nombre:'Plan ya borrado')}</h2><p class="d">${e(r.motivo)}</p><div class="meta">${new Date(r.creado_en).toLocaleString('es-ES')}</div><div class="acc">${r.planes?`<button class="rojo" data-desc="${r.planes.id}">Quitar plan</button>`:''}<button data-ign="${r.id}">Ignorar</button></div></div>`).join(''):'<p class="vacio">No hay reportes.</p>';
   return;
  }
  if(tab==='comentarios'){
@@ -74,17 +89,24 @@ async function cargar(){
   $('lista').innerHTML=data.length?data.map(c=>`<div class="card"><div class="meta">${est(c.estrellas)} · ${new Date(c.creado_en).toLocaleString('es-ES')}</div><h2>${e(c.planes?c.planes.nombre:'Plan borrado')}</h2><p class="d">${e(c.comentario)}</p><div class="acc"><button class="rojo" data-delcom="${c.id}">Borrar comentario</button></div></div>`).join(''):'<p class="vacio">Aún no hay comentarios.</p>';
   return;
  }
- const {data,error}=await db.from('planes').select('*').eq('estado',tab).order('fecha_inicio',{ascending:true,nullsFirst:true}).limit(500);
+ let qy=db.from('planes').select('*').eq('estado',tab);
+ qy=orden==='nota'?qy.order('nota',{ascending:false,nullsFirst:false}):qy.order('fecha_inicio',{ascending:true,nullsFirst:true});
+ const {data,error}=await qy.limit(500);
  if(error)return fallo(error);
  data.forEach(p=>cache.set(p.id,p));
- if(tab==='pendiente'&&data.length)$('extra').innerHTML=`<button class="verde" style="width:100%;margin-bottom:12px" data-todos="1">Aprobar los ${data.length} pendientes</button>`;
+ $('extra').innerHTML=`<div class="orden">Ordenar: <button data-orden="fecha" class="${orden==='fecha'?'on':''}">Fecha</button><button data-orden="nota" class="${orden==='nota'?'on':''}">Nota</button></div>`+(tab==='pendiente'&&data.length?`<button class="verde" style="width:100%;margin-bottom:12px" data-todos="1">Aprobar los ${data.length} pendientes</button>`:'');
  $('lista').innerHTML=data.length?data.map(p=>{const url=/^https:\/\//i.test(p.url_fuente||'')?p.url_fuente:null;
   const dias=Array.isArray(p.fechas)&&p.fechas.length?'Días: '+p.fechas.slice(0,10).join(', ')+(p.fechas.length>10?'…':''):'Todos los días del rango';
-  return `<div class="card"><div class="meta">${p.imprescindible?'🔥 IMPRESCINDIBLE · ':''}nota ${p.nota??'–'} · ${e(p.categoria||'sin categoría')} · ${e(p.precio)} · ${e(p.fuente||'')}</div>
+  const c=p.criterios||{},tuya=p.nota_alex;
+  return `<div class="card">${p.foto?`<div class="foto"><img src="${e(p.foto)}" alt="" loading="lazy" referrerpolicy="no-referrer">${p.foto_credito?`<small>Foto: ${e(p.foto_credito)}</small>`:''}<button class="rojo" data-sinfoto="${p.id}">Quitar foto</button></div>`:''}
+  <div class="meta">${p.imprescindible?'IMPRESCINDIBLE · ':''}${e(p.categoria||'sin categoría')} · ${e(p.precio)} · ${e(p.fuente||'')}</div>
   <h2>${e(p.nombre)}</h2>${p.subtitulo?`<p class="sub2">${e(p.subtitulo)}</p>`:''}
-  <div class="meta">📅 ${e(fecha(p))} · ${e(dias)}</div>
-  <div class="meta">📍 ${e(p.lugar)}${p.horario?' · 🕐 '+e(p.horario):''}</div>
+  <div class="nota"><b>${p.nota??'–'}</b><span class="meta">${tuya!=null?'nota tuya':p.criterios?'nota de la IA':'nota antigua (se recalculará)'}</span></div>
+  ${p.criterios?`<div class="crit">${CRIT.map(([k,l])=>`<span>${l} ${c[k]??0}/2</span>`).join('')}</div>`:''}${p.por_que?`<p class="pq">${e(p.por_que)}</p>`:''}
+  <div class="meta" style="margin-top:8px">Fechas: ${e(fecha(p))} · ${e(dias)}</div>
+  <div class="meta">Lugar: ${e(p.lugar)}${p.horario?' · Horario: '+e(p.horario):''}</div>
   <p class="d">${e(p.descripcion)}</p>${url?`<a href="${e(url)}" target="_blank" rel="noopener">Ver fuente ↗</a>`:''}
+  <div class="tu">Tu nota:${[1,2,3,4,5,6,7,8,9,10].map(n=>`<button data-nota="${n}" data-id="${p.id}" class="${tuya===n?'on':''}" aria-label="Nota ${n}">${n}</button>`).join('')}</div>
   <div class="acc">${tab==='pendiente'?`<button class="verde" data-est="aprobado" data-id="${p.id}">✓ Aprobar</button>`:`<button data-est="pendiente" data-id="${p.id}">↩ A pendiente</button>`}
   <button class="${p.imprescindible?'':'negro'}" data-imp="${p.id}" data-v="${p.imprescindible?0:1}">${p.imprescindible?'Quitar imprescindible':'Marcar imprescindible'}</button>
   <button class="rojo" data-desc="${p.id}">✕ Descartar</button></div></div>`}).join('')
@@ -103,6 +125,15 @@ document.addEventListener('click',async ev=>{
  else if(ds.est){b.disabled=true;const {error}=await db.from('planes').update({estado:ds.est}).eq('id',+ds.id);error?fallo(error):cargar()}
  else if(ds.imp){b.disabled=true;const {error}=await db.from('planes').update({imprescindible:ds.v==='1'}).eq('id',+ds.imp);error?fallo(error):cargar()}
  else if(ds.desc){if(confirm('¿Descartar este plan? Desaparecerá y la IA no lo volverá a traer.')){b.disabled=true;descartar(+ds.desc)}}
+ else if(ds.orden){orden=ds.orden;cargar()}
+ else if(ds.nota){b.disabled=true;const id=+ds.id,n=+ds.nota,p=cache.get(id)||{};
+  const {error}=await db.from('planes').update({nota:n,nota_alex:n}).eq('id',id);if(error)return fallo(error);
+  const r=await db.from('ejemplos').upsert({fuente_id:p.fuente_id||('id-'+id),nombre:p.nombre,subtitulo:p.subtitulo,categoria:p.categoria,nota:n},{onConflict:'fuente_id'});
+  if(r.error)return fallo(r.error);
+  p.nota=n;p.nota_alex=n;b.disabled=false;const card=b.closest('.card');
+  card.querySelector('.nota b').textContent=n;card.querySelector('.nota .meta').textContent='nota tuya';
+  card.querySelectorAll('[data-nota]').forEach(x=>x.classList.toggle('on',x===b))}
+ else if(ds.sinfoto){if(confirm('¿Quitar la foto? Saldrá la portada de su categoría.')){b.disabled=true;const {error}=await db.from('planes').update({foto:null,foto_credito:null}).eq('id',+ds.sinfoto);error?fallo(error):cargar()}}
  else if(ds.ign){b.disabled=true;const {error}=await db.from('reportes').delete().eq('id',+ds.ign);error?fallo(error):cargar()}
  else if(ds.delcom){if(confirm('¿Borrar este comentario? Las estrellas se mantienen.')){b.disabled=true;const {error}=await db.from('valoraciones').update({comentario:null}).eq('id',+ds.delcom);error?fallo(error):cargar()}}
  else if(ds.todos){if(confirm('¿Aprobar todos los pendientes?')){b.disabled=true;const {error}=await db.from('planes').update({estado:'aprobado'}).eq('estado','pendiente');error?fallo(error):cargar()}}
