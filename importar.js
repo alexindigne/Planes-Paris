@@ -170,7 +170,7 @@ async function enParalelo(items, n, fn) {
 }
 
 // ===== PHOTOS (the official one from Paris's agenda, checked by the AI) =====
-const SOSPECHOSA = /logo|default|placeholder|avatar|favicon|sprite|blank|no-?image|\.svg(\?|$)|\.gif(\?|$)/i;
+const SOSPECHOSA = /billetweb\.jpg|eventbrite-logo|shotgun-logo|logo|default|placeholder|avatar|favicon|sprite|blank|no-?image|\.svg(\?|$)|\.gif(\?|$)/i;
 const usadas = new Set(); // a photo already used by another plan = generic image
 const fotoOD = e => { const u = e && (e.cover_url || (e.cover && e.cover.url)); return /^https:\/\//i.test(u || '') ? u : null; };
 const creditoOD = e => limpia(e && e.cover_credit).slice(0, 60) || 'Paris.fr';
@@ -200,27 +200,29 @@ const motivosFoto = {};
 const TECNICOS = ['download failed', 'AI check failed'];
 // ctx.reintentar = true when the failure was technical (try again next week)
 const noFoto = (m, ctx) => { motivosFoto[m] = (motivosFoto[m] || 0) + 1; if (ctx && TECNICOS.includes(m)) ctx.reintentar = true; return null; };
-const PROMPT_FOTO = `You check photos for a Paris events app. You receive one image, the plan it should illustrate and the web page the image comes from.
-Answer NO only if the image is clearly one of these: a logo or icon; a generic image of a website (a default share image); a photo of a clearly different event or place; a screenshot; a banner that is mostly text (an official poster or flyer of the event is fine); an image with a visible watermark or the logo of a media or agenda website printed on it.
-Otherwise answer YES. The main image of the event's own page (official site, venue, organiser or ticketing page) is almost always the event's visual: say YES unless it is clearly one of the cases above. Photos of the artworks, artists, performers, venue, products, food or the event's own visual are all fine.
-Answer with one word: YES or NO.`;
+const PROMPT_FOTO = `You choose the cover photo of a plan in a Paris going-out app, shown big like on Airbnb.
+Judge it twice: as the person browsing the app ("does this photo show me what I will see or live there, and make me want to go?") and as the organiser of the plan ("would I be happy with this as the cover of my event?"). It must pass both.
+YES when the image clearly represents the plan: the event itself or a past edition of it; the artworks, the artist, the performers or the DJ; the brand, products or collection; the food or drinks; the venue, inside or outside; the official poster or visual; or a photo of the plan's theme that clearly evokes it (bikes for a bike race, chocolate for a chocolate fair, records for a vinyl fair).
+NO when: a watermark, a copyright text or the logo of a media, agenda or ticketing website is printed on the image; it is a logo, an icon or a generic image of a website; it is a screenshot, a map, a document or mostly text (the event's official poster is fine); it has nothing to do with the plan (another event, place or topic); it is so blurry, dark or badly cropped that it would look poor as a cover.
+Answer with exactly one line: YES, or NO followed by a colon and one short reason from: watermark, logo, generic, text, unrelated, low quality.`;
 let rechazosLog = 0;
 async function fotoValida(img, p, ctx, origen, url) {
-  const pregunta = { model: MODELO, max_tokens: 20, system: PROMPT_FOTO, messages: [{ role: 'user', content: [
+  const body = { max_tokens: 1024, system: PROMPT_FOTO, messages: [{ role: 'user', content: [
     { type: 'image', source: { type: 'base64', media_type: img.tipo, data: img.buf.toString('base64') } },
-    { type: 'text', text: `Plan: ${p.nombre}${p.subtitulo ? ' — ' + p.subtitulo : ''} (${p.categoria || 'otro'}), at ${p.lugar || 'Paris'}.\nImage source: ${origen || 'unknown page'}.\nYES or NO?` }
+    { type: 'text', text: `Plan: ${p.nombre}${p.subtitulo ? ' — ' + p.subtitulo : ''} (${p.categoria || 'otro'}), at ${p.lugar || 'Paris'}.\nImage source: ${origen || 'unknown page'}.` }
   ] }] };
   for (let intento = 0; intento < 2; intento++) {
     try {
-      const { model, ...body } = pregunta;
-      const j = await claude(body), t = textoDe(j).trim().toUpperCase();
-      if (!t) console.error(`Photo check: empty answer (stop: ${j.stop_reason}, blocks: ${j.content.map(b => b.type).join(',') || 'none'})`);
-      if (/\bYES\b/.test(t)) return true;
-      if (/\bNO\b/.test(t)) {
-        noFoto('AI: not right for this plan', ctx);
-        if (rechazosLog++ < 20) console.log(`Photo rejected by AI: "${p.nombre}" ← ${origen || ''} ${url || ''}`);
+      const j = await claude(body), t = textoDe(j).trim();
+      if (/^\W*YES\b/i.test(t)) return true;
+      const no = t.match(/^\W*NO\b\W*([a-z ]{2,20})?/i);
+      if (no) {
+        const motivo = (no[1] || 'other').trim().toLowerCase();
+        noFoto('AI: ' + motivo, ctx);
+        if (rechazosLog++ < 20) console.log(`Photo rejected by AI (${motivo}): "${p.nombre}" ← ${url || ''}`);
         return false;
       }
+      console.error(`Photo check: unexpected answer "${t.slice(0, 60)}" (stop: ${j.stop_reason})`);
     } catch (err) { console.error('Photo check failed:', String(err.message).slice(0, 200)); }
   }
   noFoto('AI check failed', ctx);
@@ -232,7 +234,7 @@ async function elegirFoto(url, p, conIA = true, ctx = {}, origen = '') {
   if (!FOTOS) return null;
   if (!url) return noFoto('no photo found', ctx);
   if (SOSPECHOSA.test(url)) return noFoto('looks like a logo', ctx);
-  if (usadas.has(url)) return noFoto('same photo as another plan', ctx);
+  if (conIA && usadas.has(url)) return noFoto('same photo as another plan', ctx);
   let buf;
   try {
     const r = await fetch(url, { headers: { 'User-Agent': UA, Accept: 'image/*' }, redirect: 'follow', signal: AbortSignal.timeout(15000) });
@@ -287,7 +289,7 @@ async function revalorar() {
     const trozo = planes.slice(i, i + 10);
     let res = [];
     try {
-      const j = await claude({ max_tokens: 3000, system: `${CRITERIA}\n\n${SCORING}${EJEMPLOS}\n\n${PROMPT_REVALORAR}`, messages: [{ role: 'user', content: JSON.stringify(trozo.map(ficha)) }] });
+      const j = await claude({ max_tokens: 8000, system: `${CRITERIA}\n\n${SCORING}${EJEMPLOS}\n\n${PROMPT_REVALORAR}`, messages: [{ role: 'user', content: JSON.stringify(trozo.map(ficha)) }] });
       res = leerLista(textoDe(j));
     } catch (err) { console.error('Re-score batch failed:', err.message); continue; }
     for (const r of res) {
