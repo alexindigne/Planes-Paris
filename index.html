@@ -53,7 +53,10 @@ main{max-width:720px;margin:auto;padding:0 0 calc(var(--nav) + 48px + env(safe-a
 
 /* ---------- Plan cards ---------- */
 .rc{position:relative;flex:none;width:min(42vw,190px);scroll-snap-align:start}
-.rc.big{width:min(78vw,320px)}
+.rc.big{width:min(80vw,340px)}
+.rc.big .ft{aspect-ratio:4/3}
+.rc.vert{width:min(46vw,200px)}
+.rc.vert .ft{aspect-ratio:3/4}
 .rl{display:flex;flex-direction:column;gap:10px;text-decoration:none;color:inherit}
 .ft{position:relative;width:100%;aspect-ratio:1;border-radius:14px;overflow:hidden;background:var(--c2,#ececee)}
 .rc.big .ft,.lc .ft{border-radius:16px}
@@ -78,11 +81,54 @@ main{max-width:720px;margin:auto;padding:0 0 calc(var(--nav) + 48px + env(safe-a
 .rt strong.g{color:var(--ok)}
 .rr{display:inline-flex;align-items:center;gap:3px;color:var(--tx);font-weight:600;vertical-align:-1px}
 .todo{flex:none;width:min(42vw,190px);scroll-snap-align:start;text-decoration:none;color:inherit}
-.todo.big{width:min(78vw,320px)}
+.todo.big{width:min(80vw,340px)}
+.todo.big .ft{aspect-ratio:4/3}
+.todo.vert{width:min(46vw,200px)}
+.todo.vert .ft{aspect-ratio:3/4}
 .todo .ft{background:var(--soft);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px}
 .todo .ci{width:48px;height:48px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 4px rgba(0,0,0,.08);margin-bottom:6px}
 .todo b{font-size:15px;font-weight:700}
 .todo small{font-size:13px;color:var(--mu)}
+
+/* ---------- Row layouts (each theme looks different) ---------- */
+.rc.wide{width:min(84vw,360px)}
+.rc.wide .ft{aspect-ratio:4/3;border-radius:16px}
+.rc.wide .rt b{font-size:17px}
+.top{display:flex;gap:2px;overflow-x:auto;padding:0 20px 4px;scroll-snap-type:x mandatory;scroll-padding-left:20px;scrollbar-width:none;overscroll-behavior-x:contain}
+.top::-webkit-scrollbar{display:none}
+.tk{--w:min(38vw,156px);flex:none;display:flex;align-items:flex-start;scroll-snap-align:start;padding-right:10px}
+.tk .num{flex:none;font-size:112px;font-weight:800;line-height:.8;letter-spacing:-.08em;color:#fff;-webkit-text-stroke:2px var(--tx);paint-order:stroke;margin:calc(var(--w) - 90px) -6px 0 0;position:relative;z-index:0;user-select:none}
+.tk .rc{width:var(--w);z-index:1}
+.lis{display:flex;flex-direction:column;padding:0 20px}
+.li{position:relative;border-bottom:1px solid var(--bd)}
+.li:last-child{border-bottom:0}
+.li .rl{flex-direction:row;align-items:center;gap:14px;padding:12px 40px 12px 0}
+.li .ft{flex:none;width:84px;height:84px;aspect-ratio:auto;border-radius:12px}
+.li .cov span{display:none}
+.li .hrt{top:50%;right:-10px;transform:translateY(-50%)}
+.li .hrt svg{fill:none;stroke:var(--tx)}
+.li .hrt.on svg{fill:var(--ac);stroke:var(--ac)}
+.rt>span.kk{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--ac2)}
+.gr{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px 14px;padding:0 20px}
+.gr .rc{width:auto}
+.gr .rt b{font-size:14px}
+.gr .rt>span{font-size:12px}
+.gr .tag{top:8px;left:8px;height:24px;padding:0 9px;font-size:11px}
+.gr.full{padding-top:16px;gap:24px 14px}
+@media(min-width:620px){.gr.full{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.vermas{display:block;margin:16px 20px 0;padding:13px;border:1px solid #dcdad4;border-radius:12px;text-align:center;font-size:14px;font-weight:700;text-decoration:none;color:var(--tx)}
+
+/* Mosaic: one big featured plan + two small ones */
+.mos{display:flex;flex-direction:column;gap:16px;padding:0 20px}
+.mos .gr{padding:0}
+.mz{position:relative}
+.mzb{position:relative;display:block;border-radius:18px;overflow:hidden;text-decoration:none;color:#fff}
+.mzb .ft{aspect-ratio:4/3;border-radius:0}
+.mzb .ov{position:absolute;left:0;right:0;bottom:0;padding:56px 16px 14px;background:linear-gradient(to bottom,rgba(0,0,0,0),rgba(0,0,0,.72));display:flex;flex-direction:column;gap:3px}
+.mzb .ov b{font-size:21px;font-weight:800;letter-spacing:-.025em;line-height:1.2}
+.mzb .ov span{font-size:13px;font-weight:500;color:rgba(255,255,255,.92)}
+/* Discreet ranking: small number on the photo */
+.rk{position:absolute;left:10px;bottom:10px;z-index:2;width:32px;height:32px;border-radius:50%;background:var(--tx);color:#fff;font-size:15px;font-weight:800;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.25)}
 
 /* ---------- Lists (See all / results) ---------- */
 .ph{display:flex;align-items:center;gap:14px;padding:20px 20px 4px}
@@ -239,13 +285,14 @@ nav.bn button.on{color:var(--ac2)}
 // ===== SETTINGS (you can change these) =====
 const NOMBRE='Planinparis';
 const URL_='https://cmtrtvpanfhrbpdztkvn.supabase.co', KEY='sb_publishable_UZAKaPQsCY6pEXo086lXOw_0FyRqEzE';
-const SELECCION=8;   // minimum score for "Our picks"
+const PICKS=12;      // "Our picks" = the best plans of the moment (how many)
+const PICK_MIN=7;    // ...and only if their score is at least this
 const POR_FILA=8;    // plans per row on the home page (then "See all")
 const MIN_FILA=3;    // a row only appears if it has at least this many plans
 
 // Home rows, in order. Mon-Wed: the weekend goes lower. Thu-Sun: it goes up.
-const ORDEN_LMX=['must','hoy','semana','ultima','finde','picks','pronto','gratis','nuevo'];
-const ORDEN_JD =['must','hoy','finde','semana','ultima','picks','pronto','gratis','nuevo'];
+const ORDEN_LMX=['must','hoy','semana','finde','ultima','picks','gratis','pronto','nuevo'];
+const ORDEN_JD =['must','hoy','finde','semana','ultima','picks','gratis','pronto','nuevo'];
 
 const CAT={'música':'#7c3aed','expo':'#2563eb','pop-up':'#db2777','mercado':'#16a34a','festival':'#ea580c','cine':'#dc2626','aire libre':'#0d9488','otro':'#6b7280'};
 const CATBG={'música':'#efe9fc','expo':'#e6edfc','pop-up':'#fce8f1','mercado':'#e4f4e9','festival':'#fdede1','cine':'#fce7e7','aire libre':'#e0f3f0','otro':'#efeff1'};
@@ -292,7 +339,7 @@ const S={
  nuevo:'New',ultimo:'Last day',pronto:'Ending soon',seleccion:'Our pick',selChip:'Our picks',soloSel:'Our picks only',imp:'Must-do',
  valorar:'Been there? Rate it',comPh:'Tell us about it (optional)',enviar:'Send',eligeEst:'Pick 1 to 5 stars',graciasVoto:'Thanks for your rating!',yaVotado:"You've already rated this plan",tuVoto:'Your rating',desde:'You can rate it from ',opiniones:'Reviews',resena:'review',resenas:'reviews',compartirTxt:'Check out this plan',
  f_cuando:'When',f_horas:'Hours',f_donde:'Where',f_precio:'Price',f_org:'Organised by',b_expect:'What to expect',b_tips:'Good to know',b_ideal:'Ideal for',b_mapa:"Where you'll be",maps:'Open in Google Maps',
- verTodo:'See all',planes:'plans',plan:'plan',explorar:'Explore',mapa:'Map',res:'Your selection',resQ:'Results for “{q}”',savedVacio:'No saved plans yet',savedSub:'Tap the heart on any plan to keep it here.',volver:'Back',foto:'Photo: ',
+ verTodo:'See all',verN2:'See all {n} plans',acaba:'Ends ',abre:'Opens ',planes:'plans',plan:'plan',explorar:'Explore',mapa:'Map',res:'Your selection',resQ:'Results for “{q}”',savedVacio:'No saved plans yet',savedSub:'Tap the heart on any plan to keep it here.',volver:'Back',foto:'Photo: ',
  ds:['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],ms:['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],ml:['January','February','March','April','May','June','July','August','September','October','November','December'],dn:['M','T','W','T','F','S','S'],
  cats:{'música':'Music','expo':'Exhibition','pop-up':'Pop-up','mercado':'Market','festival':'Festival','cine':'Cinema','aire libre':'Outdoors','otro':'Other'}
 };
@@ -317,7 +364,8 @@ const api=(path,opt={})=>fetch(URL_+'/rest/v1/'+path,{...opt,headers:{...H,...(o
 const tx=(p,k)=>(p.i18n&&p.i18n[LANG]&&p.i18n[LANG][k])||p[k];
 const lista=a=>Array.isArray(a)?a.filter(Boolean):[];
 const esGratis=p=>/^(free|gratis|gratuit)/i.test(p.precio||'');
-const esSel=p=>(p.nota||0)>=SELECCION;
+let PICK=new Set();
+const esSel=p=>PICK.has(p.id);
 const precioTx=p=>esGratis(p)?S.free:tx(p,'precio');
 const urlOk=p=>/^https:\/\//i.test(p.url_fuente||'')?p.url_fuente:null;
 const fotoOk=p=>/^https:\/\//i.test(p.foto||'')?p.foto:null;
@@ -372,19 +420,25 @@ function conj(k){if(k==='hoy')return [HOY];if(k==='manana')return [masDias(1)];r
 const igual=(s,arr)=>s.size===arr.length&&arr.every(x=>s.has(x));
 const numFiltros=()=>(st.dias.size?1:0)+(st.gratis?1:0)+(st.sel?1:0)+st.cats.size;
 const hayFiltros=()=>numFiltros()>0||st.fav||!!st.q.trim();
+// Same order for everyone during a day, different every day
+const azar=id=>{let h=2166136261^Number(id);for(const c of HOY)h=Math.imul(h^c.charCodeAt(0),16777619);h=Math.imul(h^(h>>>15),2246822507);h^=h>>>13;return ((h>>>0)%10000)/10000};
+// Higher score always first; plans with the SAME score swap places every day (a 10 with a 10, a 9 with a 9…)
+const rotada=(a,b)=>(b.nota||0)-(a.nota||0)||(b.imprescindible?1:0)-(a.imprescindible?1:0)||azar(a.id)-azar(b.id);
+// Plans you can drop in any day (exhibition, pop-up, festival on consecutive days), not one day a week
+const continuo=p=>{const f=Array.isArray(p.fechas)?p.fechas:null;if(!f||!f.length)return true;if(f.length<2)return false;for(let i=1;i<f.length;i++)if(diasEntre(f[i-1],f[i])>4)return false;return true};
 const porNota=(a,b)=>(b.nota||0)-(a.nota||0)||(b.imprescindible?1:0)-(a.imprescindible?1:0)||proxima(a).localeCompare(proxima(b));
 const porFecha=(a,b)=>proxima(a).localeCompare(proxima(b))||(b.nota||0)-(a.nota||0);
 
 // ===== HOME ROWS =====
 const TEMAS={
- must:{t:'Must-dos',s:()=>'The big moments in Paris right now',ok:p=>!!p.imprescindible,ord:porNota,min:1},
- hoy:{t:"What's on today",s:()=>fd(HOY),ok:p=>enDia(p,HOY),ord:porNota},
- semana:{t:"This week's best",s:()=>'The next 7 days',ok:p=>SEMANA.some(d=>enDia(p,d)),ord:porNota},
- finde:{t:'This weekend',s:()=>{const f=finde();return f.length>1?fd(f[0])+' – '+fd(f[f.length-1]):fd(f[0])},ok:p=>finde().some(d=>enDia(p,d)),ord:porNota},
- ultima:{t:'Last chance',s:()=>'Ending in the next 7 days',ok:p=>{const fin=ultima(p),ini=inicio(p);return !!fin&&fin>=HOY&&fin<=EN7&&(!ini||(ini<=HOY&&ini<fin))},ord:(a,b)=>String(ultima(a)).localeCompare(String(ultima(b)))||porNota(a,b)},
- picks:{t:'Our picks',s:()=>'Our favourite plans right now',ok:esSel,ord:porNota},
+ must:{t:'Must-dos',s:()=>'The big moments in Paris right now',ok:p=>!!p.imprescindible,ord:rotada,min:1},
+ hoy:{t:"What's on today",s:()=>fd(HOY),ok:p=>enDia(p,HOY),ord:rotada},
+ semana:{t:'Best of the week',s:()=>'Next 7 days',ok:p=>SEMANA.some(d=>enDia(p,d)),ord:rotada},
+ finde:{t:'This weekend',s:()=>{const f=finde();return f.length>1?fd(f[0])+' – '+fd(f[f.length-1]):fd(f[0])},ok:p=>finde().some(d=>enDia(p,d)),ord:rotada},
+ ultima:{t:'Last chance',s:()=>'Ending in the next 7 days',ok:p=>{const fin=ultima(p),ini=inicio(p);return !!fin&&fin>=HOY&&fin<=EN7&&(!ini||(ini<=HOY&&ini<fin))&&continuo(p)},ord:(a,b)=>String(ultima(a)).localeCompare(String(ultima(b)))||porNota(a,b)},
+ picks:{t:'Our picks',s:()=>'Our favourite plans right now',ok:esSel,ord:rotada,repite:true},
  pronto:{t:'Starting soon',s:()=>'Opening in the next few days',ok:p=>{const i=inicio(p);return !!i&&i>HOY&&i<=EN7},ord:(a,b)=>String(inicio(a)).localeCompare(String(inicio(b)))||porNota(a,b)},
- gratis:{t:'For free!',s:()=>'0 €, no catch',ok:esGratis,ord:porFecha},
+ gratis:{t:'For free!',s:()=>'0 €, no catch',ok:esGratis,ord:rotada},
  nuevo:{t:'Just added',s:()=>'New on Planinparis this week',ok:p=>!!p.creado_en&&Date.now()-new Date(p.creado_en)<7*864e5,ord:(a,b)=>String(b.creado_en).localeCompare(String(a.creado_en))}
 };
 const ordenFilas=()=>{const w=new Date().getDay();return w>=1&&w<=3?ORDEN_LMX:ORDEN_JD};
@@ -418,38 +472,58 @@ function badges(p){
  return b.join('');
 }
 // Photo, or the designed category cover if there is none (or it fails to load)
-function foto(p,sz,conTag=true){
+function foto(p,sz,conTag=true,extra=''){
  const c=CAT[p.categoria]||CAT.otro,bg=CATBG[p.categoria]||CATBG.otro,f=fotoOk(p);
- return `<div class="ft" style="--c1:${c};--c2:${bg}"><div class="cov">${svg(CATIC[p.categoria]||CATIC.otro,sz,1.5)}<span>${e(catTx(p))}</span></div>${f?`<img src="${e(f)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror="this.remove()">`:''}${conTag?tag(p):''}</div>`;
+ return `<div class="ft" style="--c1:${c};--c2:${bg}"><div class="cov">${svg(CATIC[p.categoria]||CATIC.otro,sz,1.5)}<span>${e(catTx(p))}</span></div>${f?`<img src="${e(f)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror="this.remove()">`:''}${conTag?tag(p):''}${extra}</div>`;
 }
 const heart=p=>`<button class="hrt${favs.has(p.id)?' on':''}" data-fav="${p.id}" aria-label="Save">${I('heart',24)}</button>`;
 const precioHTML=p=>`<strong class="${esGratis(p)?'g':''}">${e(precioTx(p))}</strong>`;
 function rateHTML(p){const r=st.rat[p.id];return r&&r.total?` · <span class="rr">${STAR(true,12)}${Number(r.media).toFixed(1)}</span>`:''}
-function tarjetaFila(p,big){
+function tarjetaFila(p,big,extra=''){
  const fe=fechas(p),nom=e(tx(p,'nombre'));
  const txt=big
   ?`<span>${e(zona(p))}</span>${fe?`<span>${e(fe)}</span>`:''}<span>${precioHTML(p)}${rateHTML(p)}</span>`
   :`<span>${e(catTx(p))} · ${e(zona(p))}</span><span>${precioHTML(p)}${fe?' · '+e(fe):''}</span>`;
- return `<div class="rc${big?' big':''}"><a class="rl" href="?plan=${p.id}" data-plan="${p.id}">${foto(p,big?56:40)}<div class="rt"><b>${nom}</b>${txt}</div></a>${heart(p)}</div>`;
+ return `<div class="rc${big?' big':''}"><a class="rl" href="?plan=${p.id}" data-plan="${p.id}">${foto(p,big?56:40,true,extra)}<div class="rt"><b>${nom}</b>${txt}</div></a>${heart(p)}</div>`;
 }
-function tarjetaLista(p){
- const fe=fechas(p),sub=tx(p,'subtitulo');
- return `<div class="rc lc"><a class="rl" href="?plan=${p.id}" data-plan="${p.id}">${foto(p,60)}<div class="rt"><b>${e(tx(p,'nombre'))}</b>${sub?`<span class="s2">${e(sub)}</span>`:''}<span>${e(catTx(p))} · ${e(zona(p))}</span><span>${precioHTML(p)}${fe?' · '+e(fe):''}${rateHTML(p)}</span></div></a>${heart(p)}</div>`;
+// Compact row (thumbnail + text) for the list layout
+function tarjetaRow(p,k){
+ const fe=fechas(p),ult=ultima(p),ini=inicio(p);
+ const kk=k==='ultima'&&ult?(ult===HOY?S.ultimo:S.acaba+fd(ult)):k==='pronto'&&ini?S.abre+fd(ini):'';
+ return `<div class="li"><a class="rl" href="?plan=${p.id}" data-plan="${p.id}">${foto(p,30,false)}<div class="rt">${kk?`<span class="kk">${e(kk)}</span>`:''}<b>${e(tx(p,'nombre'))}</b><span>${e(catTx(p))} · ${e(zona(p))}</span><span>${precioHTML(p)}${fe&&!kk?' · '+e(fe):''}${rateHTML(p)}</span></div></a>${heart(p)}</div>`;
 }
-function fila(k,arr,total){
- const T=TEMAS[k],big=k==='must';
- return `<section class="fila"><div class="fh"><div><h2>${T.t}</h2><p>${e(T.s())}</p></div><a class="vt-b" href="?see=${k}" data-see="${k}" aria-label="${S.verTodo}: ${e(T.t)}">${I('right',16)}</a></div>
- <div class="carr">${arr.map(p=>tarjetaFila(p,big)).join('')}${total>arr.length?`<a class="todo${big?' big':''}" href="?see=${k}" data-see="${k}"><div class="ft"><span class="ci">${I('right',20)}</span><b>${S.verTodo}</b><small>${total} ${S.planes}</small></div></a>`:''}</div></section>`;
+// Each theme has its own look, so the home page doesn't feel repetitive
+// Layouts: hero, carr, wide, top (big numbers), rank (small numbers), mosaico (1 big + 2 small), lista, grid
+const LAYOUT={must:'hero',hoy:'carr',semana:'mosaico',ultima:'lista',finde:'grid',picks:'vert',pronto:'lista',gratis:'grid',nuevo:'carr'};
+const CUANTOS={hero:8,carr:8,wide:6,vert:8,top:5,rank:5,mosaico:3,lista:4,grid:4};
+function fila(k,arr,total,lay){
+ const T=TEMAS[k],ver=`?see=${k}`;
+ const head=`<div class="fh"><div><h2>${T.t}</h2><p>${e(T.s())}</p></div><a class="vt-b" href="${ver}" data-see="${k}" aria-label="${S.verTodo}: ${e(T.t)}">${I('right',16)}</a></div>`;
+ const tile=cls=>total>arr.length?`<a class="todo${cls?' '+cls:''}" href="${ver}" data-see="${k}"><div class="ft"><span class="ci">${I('right',20)}</span><b>${S.verTodo}</b><small>${total} ${S.planes}</small></div></a>`:'';
+ const boton=total>arr.length?`<a class="vermas" href="${ver}" data-see="${k}">${S.verN2.replace('{n}',total)}</a>`:'';
+ let body;
+ if(lay==='top')body=`<div class="top">${arr.map((p,i)=>`<div class="tk"><span class="num" aria-hidden="true">${i+1}</span>${tarjetaFila(p,false)}</div>`).join('')}</div>${boton}`;
+ else if(lay==='rank')body=`<div class="carr">${arr.map((p,i)=>tarjetaFila(p,false,`<span class="rk" aria-label="Number ${i+1}">${i+1}</span>`)).join('')}${tile(false)}</div>`;
+ else if(lay==='mosaico'){const [a1,...resto]=arr,fe=fechas(a1);
+  body=`<div class="mos"><div class="mz"><a class="mzb" href="?plan=${a1.id}" data-plan="${a1.id}">${foto(a1,64)}<div class="ov"><b>${e(tx(a1,'nombre'))}</b><span>${e([catTx(a1),zona(a1),fe,precioTx(a1)].filter(Boolean).join(' · '))}</span></div></a>${heart(a1)}</div>${resto.length?`<div class="gr">${resto.map(p=>tarjetaFila(p,false)).join('')}</div>`:''}</div>${boton}`;}
+ else if(lay==='lista')body=`<div class="lis">${arr.map(p=>tarjetaRow(p,k)).join('')}</div>${boton}`;
+ else if(lay==='grid')body=`<div class="gr">${arr.map(p=>tarjetaFila(p,false)).join('')}</div>${boton}`;
+ else if(lay==='wide'||lay==='vert')body=`<div class="carr">${arr.map(p=>tarjetaFila(p,false).replace('class="rc"',`class="rc ${lay}"`)).join('')}${tile(lay)}</div>`;
+ else body=`<div class="carr">${arr.map(p=>tarjetaFila(p,lay==='hero')).join('')}${tile(lay==='hero'?'big':'')}</div>`;
+ return `<section class="fila">${head}${body}</section>`;
 }
 // Each plan appears only once on the home page: in the first row it fits
 function inicioHTML(){
- const usados=new Set();let h='';
+ const usados=new Set();let h='',prev='';
  for(const k of ordenFilas()){
-  const T=TEMAS[k],todos=st.datos.filter(T.ok).sort(T.ord);
-  const libres=todos.filter(p=>!usados.has(p.id)).slice(0,POR_FILA);
+  const T=TEMAS[k],todos=st.datos.filter(T.ok).sort(T.ord),libres=T.repite?todos:todos.filter(p=>!usados.has(p.id));
   if(libres.length<(T.min||MIN_FILA))continue;
-  libres.forEach(p=>usados.add(p.id));
-  h+=fila(k,libres,todos.length);
+  let lay=LAYOUT[k]||'carr';
+  if(lay===prev)lay=lay==='carr'?'grid':'carr';      // never two rows in a row with the same look
+  if(lay==='grid'&&libres.length<4)lay='lista';       // a 2x2 grid needs 4 plans
+  const arr=libres.slice(0,CUANTOS[lay]);
+  if(!T.repite)arr.forEach(p=>usados.add(p.id));
+  h+=fila(k,arr,todos.length,lay);prev=lay;
  }
  return h||vacioHTML(S.vacio,'');
 }
@@ -460,7 +534,7 @@ function pagina(tit,l,conVolver){
  if(st.fav&&!n&&!numFiltros()&&!st.q.trim())vac=`<div class="vacio">${I('heart',30)}<b>${S.savedVacio}</b><p>${S.savedSub}</p></div>`;
  else vac=vacioHTML(S.vacio,S.vacioSub,numFiltros()||st.q.trim());
  return `<div class="ph">${conVolver?`<a class="back" href="./" data-volver="1" aria-label="${S.volver}">${I('back',18)}</a>`:''}<div><h2>${e(tit)}</h2><p>${n} ${n===1?S.plan:S.planes}</p></div></div>`
-  +(n?`<div class="lst">${l.map(tarjetaLista).join('')}</div>`:vac);
+  +(n?`<div class="gr full">${l.map(p=>tarjetaFila(p,false)).join('')}</div>`:vac);
 }
 function tituloRes(){
  if(st.fav)return S.guardados;
@@ -736,6 +810,7 @@ async function cargar(){
   if(!r1.ok)throw 0;
   st.datos=(await r1.json()).filter(p=>{const f=futuras(p);return !f||f.length});
   if(r2.ok)(await r2.json()).forEach(x=>st.rat[x.plan_id]={media:Number(x.media),total:x.total});
+  PICK=new Set(st.datos.filter(p=>(p.nota||0)>=PICK_MIN).sort((a,b)=>(b.nota||0)-(a.nota||0)||(b.imprescindible?1:0)-(a.imprescindible?1:0)||proxima(a).localeCompare(proxima(b))).slice(0,PICKS).map(p=>p.id));
   st.cargado=true;
  }catch(_){st.error=true}
  st.tema=null;pintar();ruta();
