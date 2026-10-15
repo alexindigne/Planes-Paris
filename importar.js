@@ -416,7 +416,7 @@ async function main() {
       const finReal = fechas ? fechas[fechas.length - 1] : fin;
       const lat = e.lat_lon?.lat ?? null, lon = e.lat_lon?.lon ?? null;
       const m = [];
-      if (!seguras) m.push('dates unclear');
+      if (!seguras && !(ini && fin)) m.push('dates unclear');
       if (lat == null) m.push('address not verified');
       m.forEach(x => motivos[x] = (motivos[x] || 0) + 1);
       planes.push({
