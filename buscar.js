@@ -7,7 +7,7 @@ const NOTA_MIN = 5;              // minimum score (0-10) to get in
 const PESOS = { original: 1, ambiente: 1, encaje: 1, oportunidad: 1, calidad: 1 };
 const FOTOS = true;              // look for one photo per plan (checked by the AI)
 const MAX_REVALORAR = 300;       // plans already in the app re-scored per run with the criteria system
-const NOTA_BUSQUEDA_FOTO = 0;    // plans with this score or more get a web search for their photo if nothing else works (0 = all)
+const NOTA_BUSQUEDA_FOTO = 0;    // plans with this score or more get a web search for their photo if the official pages gave nothing (0 = all)
 const MAX_BUSQUEDAS_FOTO = 15;   // max of those searches per run ($0.01 each), best plans first
 const NOTA_SIN_FOTO = 8;         // plans with this score or more (and must-dos) are published even without a photo
 const MAX_PLANES = 100;          // max individual plan pages read per run (controls cost)
@@ -41,6 +41,8 @@ const CATEGORIAS = ['música', 'expo', 'pop-up', 'mercado', 'festival', 'cine', 
 const IDEAL = ['Solo', 'Date', 'Friends', 'Groups'];
 const PARIS = /^750(0[1-9]|1\d|20)$|^75116$/;
 const CP_TXT = /\b(750(?:0[1-9]|1\d|20)|75116)\b/;
+const FUERA_TXT = /boulogne|saint-denis|montreuil|issy|vincennes|neuilly|levallois|ivry|pantin|nanterre|versailles|saint-ouen|clichy|courbevoie|puteaux|la d[ée]fense|aubervilliers|malakoff|vanves|charenton|gentilly|bagnolet|marne/i;
+const enParisTxt = s => /\bparis\b/i.test(s || '') && !FUERA_TXT.test(s || '');
 const AGENDAS_DOM = [...SITIOS, 'timeout.com', 'parisjetaime.com', 'telerama.fr', 'eventbrite.', 'feverup.com', 'shotgun.live', 'dice.fm', 'ra.co', 'billetweb.fr', 'paris.fr', 'facebook.com'];
 const PISTAS = /que-faire|what-to-do|things-to-do|this-week|cette-semaine|week-?end|agenda|bons-plans|good-deals|sorties|pop-?up|ephemere|expositions?|exhibitions?|concerts?|guide|art-?week|art-basel|selection|idees|picks|lineup|events/i;
 const UA = 'Mozilla/5.0 (compatible; Planinparis/1.0; +https://alexindigne.github.io/Planes-Paris/)';
@@ -279,40 +281,15 @@ const TECNICOS = ['download failed', 'AI check failed'];
 // ctx.reintentar = true when the failure was technical (try again next week)
 const noFoto = (m, ctx) => { motivosFoto[m] = (motivosFoto[m] || 0) + 1; if (ctx && TECNICOS.includes(m)) ctx.reintentar = true; return null; };
 const PROMPT_FOTO = `You choose the cover photo of a plan in a Paris going-out app, shown big like on Airbnb.
-Judge it twice: as the person browsing the app ("does this photo show me what I will see or live there, and make me want to go?") and as the organiser of the plan ("would I be happy with this as the cover of my event?"). It must pass both.
-YES when the image clearly represents the plan: the event itself or a past edition of it; the artworks, the artist, the performers or the DJ; the brand, products or collection; the food or drinks; the venue, inside or outside; the official poster or visual; or a photo of the plan's theme that clearly evokes it (bikes for a bike race, chocolate for a chocolate fair, records for a vinyl fair).
-NO when: a watermark, a copyright text or the logo of a media, agenda or ticketing website is printed on the image; it is a logo, an icon or a generic image of a website; it is a screenshot, a map, a document or mostly text (the event's official poster is fine); it has nothing to do with the plan (another event, place or topic); it is so blurry, dark or badly cropped that it would look poor as a cover.
-Answer with exactly one line: YES, or NO followed by a colon and one short reason from: watermark, logo, generic, text, unrelated, low quality.`;
+Judge every image twice: as the person browsing the app ("does this photo show me what I will see or live there, and make me want to go?") and as the organiser of the plan ("would I be proud of this as the cover of my event?"). The best cover passes both.
+Good covers: the official poster or key visual of the event (logos of the event itself, its brand, artists or partners on it are fine); the event itself or a past edition; the artworks, the artist, the performers or the DJ; the brand, products or collection; the food or drinks; the venue, inside or outside; or a photo of the plan's theme that clearly evokes it (bikes for a bike race, chocolate for a chocolate fair).
+Never choose: an image with the watermark or logo of a media, agenda or ticketing website printed on it; a logo alone, an icon or a generic image of a website; a screenshot, a map or a document; an image unrelated to the plan; a blurry, dark or badly cropped image.
+You receive numbered candidate images, each with the page it comes from. Answer with exactly one line: the number of the best cover, or 0 if none is acceptable, then a colon and a few words saying why.`;
 let rechazosLog = 0;
-async function fotoValida(img, p, ctx, origen, url) {
-  const body = { max_tokens: 1024, system: PROMPT_FOTO, messages: [{ role: 'user', content: [
-    { type: 'image', source: { type: 'base64', media_type: img.tipo, data: img.buf.toString('base64') } },
-    { type: 'text', text: `Plan: ${p.nombre}${p.subtitulo ? ' — ' + p.subtitulo : ''} (${p.categoria || 'otro'}), at ${p.lugar || 'Paris'}.\nImage source: ${origen || 'unknown page'}.` }
-  ] }] };
-  for (let intento = 0; intento < 2; intento++) {
-    try {
-      const j = await claude(body), t = textoDe(j).trim();
-      if (/^\W*YES\b/i.test(t)) return true;
-      const no = t.match(/^\W*NO\b\W*([a-z ]{2,20})?/i);
-      if (no) {
-        const motivo = (no[1] || 'other').trim().toLowerCase();
-        noFoto('AI: ' + motivo, ctx);
-        if (rechazosLog++ < 20) console.log(`Photo rejected by AI (${motivo}): "${p.nombre}" ← ${url || ''}`);
-        return false;
-      }
-      console.error(`Photo check: unexpected answer "${t.slice(0, 60)}" (stop: ${j.stop_reason})`);
-    } catch (err) { console.error('Photo check failed:', String(err.message).slice(0, 200)); }
-  }
-  noFoto('AI check failed', ctx);
-  return false;
-}
-// Returns the photo only if it passes every check; otherwise the app shows the category cover.
-// conIA = false for official photos that need no AI check (Paris's agenda).
-async function elegirFoto(url, p, conIA = true, ctx = {}, origen = '') {
-  if (!FOTOS) return null;
+// Download a photo and run the technical checks: real photo, big enough, not a banner
+async function preparar(url, ctx) {
   if (!url) return noFoto('no photo found', ctx);
   if (SOSPECHOSA.test(url)) return noFoto('looks like a logo', ctx);
-  if (conIA && usadas.has(url)) return noFoto('same photo as another plan', ctx);
   let buf;
   try {
     const r = await fetch(url, { headers: { 'User-Agent': UA, Accept: 'image/*' }, redirect: 'follow', signal: AbortSignal.timeout(15000) });
@@ -324,12 +301,42 @@ async function elegirFoto(url, p, conIA = true, ctx = {}, origen = '') {
   const m = medidas(buf);
   if (buf.length < 8000 || (m && (m.w < 400 || m.h < 250))) return noFoto('too small', ctx);
   if (m && (m.w / m.h > 3 || m.h / m.w > 2.2)) return noFoto('banner shape', ctx);
-  if (conIA) {
-    if (buf.length > 4.5e6) return noFoto('too heavy to check', ctx);
-    if (!(await fotoValida({ buf, tipo }, p, ctx, origen, url))) return null;
-  }
+  if (buf.length > 3.5e6) return noFoto('too heavy', ctx);
+  return { url, buf, tipo };
+}
+// Official photo of Paris's agenda: technical checks only
+async function elegirFoto(url, p, conIA = false, ctx = {}) {
+  if (!FOTOS) return null;
+  const img = await preparar(url, ctx);
+  if (!img) return null;
   usadas.add(url);
   return url;
+}
+// The AI looks at all the candidates together and picks the best cover (like you would on Google Images)
+async function elegirMejor(cands, p, ctx) {
+  const vistas = new Set(), listas = [];
+  for (const c of cands) { if (!vistas.has(c.url) && !usadas.has(c.url)) { vistas.add(c.url); listas.push(c); } }
+  const imgs = [];
+  await enParalelo(listas.slice(0, 10), 4, async c => { const img = await preparar(c.url, ctx); if (img) imgs.push({ ...c, ...img }); });
+  const ok = imgs.slice(0, 6);
+  if (!ok.length) return null;
+  const content = [{ type: 'text', text: `Plan: ${p.nombre}${p.subtitulo ? ' — ' + p.subtitulo : ''} (${p.categoria || 'otro'}), at ${p.lugar || 'Paris'}.` }];
+  ok.forEach((c, i) => content.push({ type: 'text', text: `Image ${i + 1} — from ${c.origen}:` }, { type: 'image', source: { type: 'base64', media_type: c.tipo, data: c.buf.toString('base64') } }));
+  content.push({ type: 'text', text: 'Which image is the best cover? Answer the number (or 0), a colon and why.' });
+  for (let intento = 0; intento < 2; intento++) {
+    try {
+      const j = await claude({ max_tokens: 1500, system: PROMPT_FOTO, messages: [{ role: 'user', content }] });
+      const t = textoDe(j).trim(), n = t.match(/^\W*(\d+)/);
+      if (!n) { console.error(`Photo choice: unexpected answer "${t.slice(0, 60)}" (stop: ${j.stop_reason})`); continue; }
+      const k = Number(n[1]);
+      if (k >= 1 && k <= ok.length) { usadas.add(ok[k - 1].url); return { foto: ok[k - 1].url, credito: ok[k - 1].credito }; }
+      noFoto('AI: none of the candidates is good', ctx);
+      if (rechazosLog++ < 20) console.log(`No good photo among ${ok.length} for "${p.nombre}": ${t.replace(/^\W*0\W*/, '').slice(0, 120)}`);
+      return null;
+    } catch (err) { console.error('Photo choice failed:', String(err.message).slice(0, 200)); }
+  }
+  noFoto('AI check failed', ctx);
+  return null;
 }
 // Agenda/media sites print their watermark on photos: we never take photos from them
 const MARCA_AGUA = ['sortiraparis.com', 'lebonbon.fr', 'parissecret.com', 'pariszigzag.fr', 'timeout.com', 'parisjetaime.com', 'telerama.fr', 'lefigaro.fr', 'leparisien.fr', 'lesinrocks.com', 'konbini.com'];
@@ -390,19 +397,6 @@ function enOpenData(p) {
   }
   return max >= 0.6 ? mejor : null;
 }
-// Photo of the venue from Wikipedia (free licence), when it is a known place
-async function fotoLugar(lugar) {
-  const sitio = limpia(String(lugar || '').split(',')[0]);
-  if (!sitio || /^\d/.test(sitio) || sitio.length < 4) return null;
-  try {
-    const q = new URLSearchParams({ action: 'query', format: 'json', prop: 'pageimages', piprop: 'thumbnail', pithumbsize: '1280', generator: 'search', gsrsearch: sitio + ' Paris', gsrlimit: '1', origin: '*' });
-    const r = await fetch('https://fr.wikipedia.org/w/api.php?' + q, { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(8000) });
-    if (!r.ok) return null;
-    const pag = Object.values((await r.json()).query?.pages || {})[0];
-    const src = pag?.thumbnail?.source;
-    return /^https:\/\//.test(src || '') && /\.(jpe?g|png|webp)$/i.test(src) ? src : null;
-  } catch (_) { return null; }
-}
 // The image a whole website uses on every page (its homepage image) is generic, not the event's
 const portadas = new Map();
 function fotoPortada(u) {
@@ -413,61 +407,70 @@ function fotoPortada(u) {
   return portadas.get(o);
 }
 const tituloDe = html => limpia(metaDe(html, ['og:title']) || decode((html.match(/<title[^>]*>([\s\S]*?)<\/title>/i) || [])[1] || '')).slice(0, 120);
-// Last resort for important plans: search the web for the event's official or ticketing page ($0.01 per search)
+// The images of a page: its cover image plus the big images of its content (where the poster usually is)
+function imagenesDe(html, base, max) {
+  const out = [], add = u => { try { const x = new URL(decode(u.trim()), base).href; if (/^https:\/\//i.test(x) && !SOSPECHOSA.test(x) && !out.includes(x)) out.push(x); } catch (_) {} };
+  const og = fotoDe(html, base); if (og) add(og);
+  for (const m of cuerpo(html).matchAll(/<img\b[^>]*>/gi)) {
+    const tag = m[0];
+    const ancho = Number((tag.match(/\bwidth=["']?(\d+)/i) || [])[1]) || 0;
+    if (ancho && ancho < 400) continue;
+    const srcset = (tag.match(/\b(?:data-)?srcset=["']([^"']+)["']/i) || [])[1];
+    const src = srcset ? srcset.split(',').map(x => x.trim().split(/\s+/)).sort((a, b) => (parseInt(b[1]) || 0) - (parseInt(a[1]) || 0))[0][0]
+      : (tag.match(/\b(?:data-src|data-lazy-src|src)=["']([^"']+)["']/i) || [])[1];
+    if (src && !/^data:/i.test(src) && !/\.svg(\?|$)/i.test(src)) add(src);
+    if (out.length >= max) break;
+  }
+  return out.slice(0, max);
+}
+async function candidatasDe(u, max, ctx) {
+  try {
+    if (!(await permitido(u))) return [];
+    const pag = await bajar(u);
+    const generica = await fotoPortada(pag.url);
+    const imgs = imagenesDe(pag.html, pag.url, max + 1).filter(x => x !== generica);
+    if (!imgs.length) noFoto('no photo on the page', ctx);
+    const origen = `the page "${tituloDe(pag.html)}" on ${host(pag.url)}`, credito = creditoDe(pag.html, pag.url);
+    return imgs.slice(0, max).map(url => ({ url, origen, credito }));
+  } catch (_) { return []; }
+}
+// Web search for pages that show the event (official page, venue, ticketing, magazines), only when the official links gave nothing ($0.01 each)
 let busquedasFoto = 0;
-async function buscarPaginaOficial(p) {
+async function buscarPaginas(p) {
   if (busquedasFoto >= MAX_BUSQUEDAS_FOTO) return [];
   busquedasFoto++;
   try {
     const j = await claude({
       max_tokens: 3000,
-      messages: [{ role: 'user', content: `Find the OFFICIAL web page of this event in Paris (the organiser, venue, artist or brand page about it, or its ticketing page): "${p.nombre}"${p.subtitulo ? ' — ' + p.subtitulo : ''}, at ${p.lugar || 'Paris'}${p.fecha_inicio ? ', ' + p.fecha_inicio : ''}. Not a news site or an agenda. Return ONLY a JSON array with up to 3 URLs, best first, between <json> and </json>.` }],
-      tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 1, blocked_domains: [...MARCA_AGUA, 'facebook.com', 'instagram.com', 'tripadvisor.com'], user_location: { type: 'approximate', city: 'Paris', country: 'FR', timezone: 'Europe/Paris' } }]
+      messages: [{ role: 'user', content: `Search the web for pages that show a good photo or the official poster of this event in Paris: "${p.nombre}"${p.subtitulo ? ' — ' + p.subtitulo : ''}, at ${p.lugar || 'Paris'}${p.fecha_inicio ? ', ' + p.fecha_inicio : ''}. Best: the event's own page on the organiser's, venue's, artist's or brand's website, its ticketing page, or a magazine article about it. Return ONLY a JSON array with up to 5 URLs, best first, between <json> and </json>.` }],
+      tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 1, blocked_domains: [...MARCA_AGUA, 'facebook.com', 'instagram.com', 'tripadvisor.com', 'tripadvisor.fr'], user_location: { type: 'approximate', city: 'Paris', country: 'FR', timezone: 'Europe/Paris' } }]
     });
-    return leerLista(textoDe(j)).map(x => typeof x === 'string' ? x : x && x.url).filter(u => /^https:\/\//i.test(u || ''));
+    const urls = leerLista(textoDe(j)).map(x => typeof x === 'string' ? x : x && x.url);
+    for (const b of j.content) if (b.type === 'web_search_tool_result' && Array.isArray(b.content)) for (const r of b.content) if (r.url) urls.push(r.url);
+    return [...new Set(urls.filter(u => /^https:\/\//i.test(u || '') && !conMarca(u) && !NO_OFICIAL.test(u)))];
   } catch (err) { console.error('Photo search failed:', String(err.message).slice(0, 150)); return []; }
 }
-// Best photo for a plan, in this order (each must pass the checks; nothing passes → category cover):
-// 1) the official page the AI found  2) the same event in Paris's official agenda  3) ticketing / organiser / venue links on the page
-// 4) the plan's own page, if it is not a media site with watermark  5) for important plans, a web search for the official page
-// 6) a photo of the venue (Wikipedia)
+// Best photo for a plan:
+// 1) the same event in Paris's official agenda (official photo)
+// 2) the official pages found in the article (the AI's choice + ticketing): all their big images, the AI picks the best
+// 3) if nothing good: one web search, the photos of the first pages, the AI picks the best (max MAX_BUSQUEDAS_FOTO per run, best plans first)
+// Nothing good → category cover (good plans) or Pending for you to add one (the rest)
 async function buscarFoto(p, fuente, ctx = {}) {
   if (!FOTOS) return null;
-  const probadas = new Set();
-  const prueba = async u => {
-    if (probadas.has(u)) return null;
-    probadas.add(u);
-    try {
-      if (!(await permitido(u))) return null;
-      const pag = await bajar(u);
-      const f = fotoDe(pag.html, pag.url);
-      if (!f) return noFoto('no photo found', ctx);
-      if (f === await fotoPortada(pag.url)) return noFoto('generic image of the site', ctx);
-      const foto = await elegirFoto(f, p, true, ctx, `the main image of the page "${tituloDe(pag.html)}" on ${host(pag.url)}`);
-      return foto ? { foto, credito: creditoDe(pag.html, pag.url) } : null;
-    } catch (_) { return null; }
-  };
-  const valido = u => /^https:\/\//i.test(u || '') && !conMarca(u) && host(u) !== host(fuente.url || '');
-  const lista = [...new Set((fuente.oficial || []).filter(valido))];
-  if (lista.length) { const f = await prueba(lista[0]); if (f) return f; }
   const od = enOpenData(p);
   if (od) { const foto = await elegirFoto(od.foto, p, false, ctx); if (foto) return { foto, credito: od.credito }; }
-  for (const u of lista.slice(1, 4)) { const f = await prueba(u); if (f) return f; }
-  if (fuente.html) {
-    const f = fotoDe(fuente.html, fuente.url);
-    if (f && f !== await fotoPortada(fuente.url)) {
-      const origen = conMarca(fuente.url)
-        ? `the photo of the article about this plan on the media site ${host(fuente.url)}: answer NO if a watermark, a copyright text or the site's logo is printed on the image`
-        : `the plan's page on ${host(fuente.url)}`;
-      const foto = await elegirFoto(f, p, true, ctx, origen);
-      if (foto) return { foto, credito: creditoDe(fuente.html, fuente.url) };
-    }
-  }
+  const valido = u => /^https:\/\//i.test(u || '') && !conMarca(u) && !NO_OFICIAL.test(u) && host(u) !== host(fuente.url || '');
+  const oficiales = [...new Set((fuente.oficial || []).filter(valido))].slice(0, 3);
+  let cands = [];
+  for (const u of oficiales) cands.push(...await candidatasDe(u, 3, ctx));
+  if (cands.length) { const f = await elegirMejor(cands, p, ctx); if (f) return f; }
   if (p.imprescindible || (p.nota || 0) >= NOTA_BUSQUEDA_FOTO) {
-    for (const u of (await buscarPaginaOficial(p)).filter(valido).slice(0, 3)) { const f = await prueba(u); if (f) return f; }
+    const paginas = (await buscarPaginas(p)).filter(u => !oficiales.includes(u)).slice(0, 5);
+    cands = [];
+    await enParalelo(paginas, 3, async u => cands.push(...await candidatasDe(u, 2, ctx)));
+    if (cands.length) { const f = await elegirMejor(cands, p, ctx); if (f) return f; }
   }
-  const foto = await elegirFoto(await fotoLugar(p.lugar), p, true, ctx, 'a Wikipedia photo of the venue');
-  return foto ? { foto, credito: 'Wikimedia Commons' } : null;
+  return null;
 }
 
 const DATES_RULE = `REAL DATES: many events are announced with a long range (e.g. "21 Oct – 4 Nov") but only happen on certain days. Read carefully and return the real days:
@@ -638,6 +641,24 @@ async function fotosPendientes() {
   });
 }
 
+
+// ===== 3d. RELEASE PENDING PLANS THAT THE NEW RULES ALLOW =====
+async function liberarPendientes() {
+  let planes;
+  try { planes = await (await sb('planes?select=id,motivo,lugar,fecha_inicio,fecha_fin,nota,imprescindible,foto&estado=eq.pendiente&motivo=not.is.null&limit=1000')).json(); }
+  catch (_) { return 0; }
+  let n = 0;
+  for (const p of planes) {
+    const quedan = String(p.motivo).split(', ').filter(x => x
+      && !(x === 'dates unclear' && p.fecha_inicio && p.fecha_fin)
+      && !(x === 'address not verified' && (CP_TXT.test(p.lugar || '') || enParisTxt(p.lugar)))
+      && !(x === 'no photo' && (p.foto || !fotoObligatoria(p))));
+    if (quedan.join(', ') === p.motivo) continue;
+    try { await sb(`planes?id=eq.${p.id}`, { method: 'PATCH', body: JSON.stringify({ motivo: quedan.join(', ') || null, estado: quedan.length ? 'pendiente' : 'aprobado' }) }); n++; } catch (_) {}
+  }
+  return n;
+}
+
 // ===== 4. DUPLICATES =====
 const STOP = new Set(['de', 'la', 'le', 'les', 'des', 'du', 'en', 'et', 'el', 'los', 'las', 'au', 'aux', 'the', 'of', 'and', 'paris', 'par', 'con', 'una', 'une', 'pour', 'para', 'sur', 'with', 'at']);
 const tokens = s => new Set(norm(s).split(' ').filter(w => w.length > 2 && !STOP.has(w)));
@@ -775,8 +796,8 @@ async function main() {
     const geo = lugar ? await geocodificar(lugar) : null;
     if (geo && !PARIS.test(geo.cp)) { informe.fuera++; desc.push({ fuente_id: id, fecha_fin: fin }); return; }
     const m = [];
-    if (d.fechas_seguras === false) m.push('dates unclear');
-    if (!geo && !CP_TXT.test(lugar)) m.push('address not verified'); // a Paris postcode is enough (no map pin)
+    if (d.fechas_seguras === false && !(ini && fin)) m.push('dates unclear'); // with a known start and end, the plan is shown with its range
+    if (!geo && !CP_TXT.test(lugar) && !enParisTxt(lugar)) m.push('address not verified'); // a Paris postcode or "Paris" in the address is enough (no map pin)
     m.forEach(x => motivos[x] = (motivos[x] || 0) + 1);
     const finReal = fechas ? fechas[fechas.length - 1] : fin;
     const nombre = limpia(d.nombre || c.nombre).slice(0, 80), subtitulo = d.subtitulo ? limpia(d.subtitulo).slice(0, 80) : null;
@@ -827,6 +848,7 @@ async function main() {
 
   await revalorar();
   await fotosPendientes();
+  const liberados = await liberarPendientes();
 
   let dup = 0;
   try { dup = await quitarDuplicados(); } catch (err) { console.error('Duplicates:', err.message); }
@@ -849,6 +871,7 @@ async function main() {
   console.log(`Photos → new plans with photo: ${informe.fotos} | without (no photo or failed the check): ${informe.fotosNo} | photos added to older plans: ${informe.fotosViejas}`);
   console.log('Why some photos were not used:', JSON.stringify(motivosFoto));
   console.log(`Web searches for photos: ${busquedasFoto}`);
+  console.log(`Pending plans released by the new rules: ${liberados}`);
   console.log(`Older plans re-scored with the criteria: ${informe.revaloradas}`);
   console.log(`Duplicates removed: ${dup}`);
   console.log(`Web searches: ${uso.busquedas} | Haiku tokens in ${uso.in} / out ${uso.out}`);
