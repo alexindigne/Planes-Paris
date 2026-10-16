@@ -43,27 +43,27 @@ header.sc{border-bottom-color:var(--bd)}
 main{max-width:720px;margin:auto;padding:0 0 calc(var(--nav) + 48px + env(safe-area-inset-bottom))}
 
 /* ---------- Rows ---------- */
-.fila{padding-top:30px}
+.fila{padding-top:28px}
 .fh{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 20px 14px}
-.fh h2{margin:0;font-size:21px;font-weight:800;letter-spacing:-.03em;line-height:1.2}
+.fh h2{margin:0;font-size:20px;font-weight:800;letter-spacing:-.03em;line-height:1.2}
 .fh p{margin:3px 0 0;font-size:13px;color:var(--mu)}
 .vt-b{flex:none;width:36px;height:36px;border-radius:50%;border:1px solid #dcdad4;background:#fff;display:flex;align-items:center;justify-content:center;text-decoration:none}
 .carr{display:flex;gap:14px;overflow-x:auto;padding:0 20px 4px;scroll-snap-type:x mandatory;scroll-padding-left:20px;scrollbar-width:none;overscroll-behavior-x:contain}
 .carr::-webkit-scrollbar{display:none}
 
 /* ---------- Plan cards ---------- */
-.rc{position:relative;flex:none;width:min(42vw,190px);scroll-snap-align:start}
+.rc{position:relative;flex:none;width:min(38vw,156px);scroll-snap-align:start}
 .rc.big{width:min(80vw,340px)}
 .rc.big .ft{aspect-ratio:4/3}
-.rc.vert{width:min(46vw,200px)}
+.rc.vert{width:min(42vw,176px)}
 .rc.vert .ft{aspect-ratio:3/4}
-.rl{display:flex;flex-direction:column;gap:10px;text-decoration:none;color:inherit}
+.rl{display:flex;flex-direction:column;gap:8px;text-decoration:none;color:inherit}
 .ft{position:relative;width:100%;aspect-ratio:1;border-radius:14px;overflow:hidden;background:var(--c2,#ececee)}
 .rc.big .ft,.lc .ft{border-radius:16px}
 .lc .ft{aspect-ratio:4/3}
 .ft img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
 .cov{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--c1);font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
-.tag{position:absolute;top:10px;left:10px;height:26px;padding:0 10px;border-radius:13px;background:#fff;color:var(--tx);font-size:12px;font-weight:700;display:inline-flex;align-items:center;box-shadow:0 1px 6px rgba(0,0,0,.14)}
+.tag{position:absolute;top:8px;left:8px;height:24px;padding:0 9px;border-radius:12px;background:#fff;color:var(--tx);font-size:11px;font-weight:700;display:inline-flex;align-items:center;box-shadow:0 1px 6px rgba(0,0,0,.14)}
 .tag.imp{background:var(--tx);color:#fff}
 .tag.urge{color:#b42318}
 .hrt{position:absolute;top:4px;right:4px;width:44px;height:44px;border:0;background:none;display:flex;align-items:center;justify-content:center;padding:0}
@@ -72,18 +72,18 @@ main{max-width:720px;margin:auto;padding:0 0 calc(var(--nav) + 48px + env(safe-a
 .pop svg{animation:pop .45s var(--ease)}
 @keyframes pop{0%{transform:scale(1)}35%{transform:scale(1.3)}65%{transform:scale(.9)}100%{transform:scale(1)}}
 .rt{display:flex;flex-direction:column;gap:2px;min-width:0}
-.rt b{font-size:15px;font-weight:700;line-height:1.3;letter-spacing:-.01em;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.rt b{font-size:14px;font-weight:700;line-height:1.3;letter-spacing:-.01em;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .rc.big .rt b,.lc .rt b{font-size:17px}
-.rt>span{font-size:13px;line-height:1.45;color:var(--mu);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rt>span{font-size:12px;line-height:1.45;color:var(--mu);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .lc .rt>span{font-size:14px}
 .rt .s2{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 .rt strong{color:var(--tx);font-weight:700}
 .rt strong.g{color:var(--ok)}
 .rr{display:inline-flex;align-items:center;gap:3px;color:var(--tx);font-weight:600;vertical-align:-1px}
-.todo{flex:none;width:min(42vw,190px);scroll-snap-align:start;text-decoration:none;color:inherit}
+.todo{flex:none;width:min(38vw,156px);scroll-snap-align:start;text-decoration:none;color:inherit}
 .todo.big{width:min(80vw,340px)}
 .todo.big .ft{aspect-ratio:4/3}
-.todo.vert{width:min(46vw,200px)}
+.todo.vert{width:min(42vw,176px)}
 .todo.vert .ft{aspect-ratio:3/4}
 .todo .ft{background:var(--soft);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px}
 .todo .ci{width:48px;height:48px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 4px rgba(0,0,0,.08);margin-bottom:6px}
@@ -103,7 +103,7 @@ main{max-width:720px;margin:auto;padding:0 0 calc(var(--nav) + 48px + env(safe-a
 .li{position:relative;border-bottom:1px solid var(--bd)}
 .li:last-child{border-bottom:0}
 .li .rl{flex-direction:row;align-items:center;gap:14px;padding:12px 40px 12px 0}
-.li .ft{flex:none;width:84px;height:84px;aspect-ratio:auto;border-radius:12px}
+.li .ft{flex:none;width:76px;height:76px;aspect-ratio:auto;border-radius:12px}
 .li .cov span{display:none}
 .li .hrt{top:50%;right:-10px;transform:translateY(-50%)}
 .li .hrt svg{fill:none;stroke:var(--tx)}
@@ -111,6 +111,7 @@ main{max-width:720px;margin:auto;padding:0 0 calc(var(--nav) + 48px + env(safe-a
 .rt>span.kk{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--ac2)}
 .gr{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px 14px;padding:0 20px}
 .gr .rc{width:auto}
+.gr .ft{aspect-ratio:4/3}
 .gr .rt b{font-size:14px}
 .gr .rt>span{font-size:12px}
 .gr .tag{top:8px;left:8px;height:24px;padding:0 9px;font-size:11px}
@@ -127,6 +128,12 @@ main{max-width:720px;margin:auto;padding:0 0 calc(var(--nav) + 48px + env(safe-a
 .mzb .ov{position:absolute;left:0;right:0;bottom:0;padding:56px 16px 14px;background:linear-gradient(to bottom,rgba(0,0,0,0),rgba(0,0,0,.72));display:flex;flex-direction:column;gap:3px}
 .mzb .ov b{font-size:21px;font-weight:800;letter-spacing:-.025em;line-height:1.2}
 .mzb .ov span{font-size:13px;font-weight:500;color:rgba(255,255,255,.92)}
+.mz.big .mzb{border-radius:16px}
+.mzb .ov b{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.mz.big .ov{padding:48px 14px 12px}
+.mz.big .ov b{font-size:18px}
+.mz.big .ov span{font-size:12px}
+.mz.big .tag{top:10px;left:10px}
 /* Discreet ranking: small number on the photo */
 .rk{position:absolute;left:10px;bottom:10px;z-index:2;width:32px;height:32px;border-radius:50%;background:var(--tx);color:#fff;font-size:15px;font-weight:800;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.25)}
 
@@ -492,6 +499,11 @@ function tarjetaRow(p,k){
  const kk=k==='ultima'&&ult?(ult===HOY?S.ultimo:S.acaba+fd(ult)):k==='pronto'&&ini?S.abre+fd(ini):'';
  return `<div class="li"><a class="rl" href="?plan=${p.id}" data-plan="${p.id}">${foto(p,30,false)}<div class="rt">${kk?`<span class="kk">${e(kk)}</span>`:''}<b>${e(tx(p,'nombre'))}</b><span>${e(catTx(p))} · ${e(zona(p))}</span><span>${precioHTML(p)}${fe&&!kk?' · '+e(fe):''}${rateHTML(p)}</span></div></a>${heart(p)}</div>`;
 }
+// Must-dos: big landscape photo with the text inside
+function tarjetaHero(p){
+ const fe=fechas(p);
+ return `<div class="rc big mz"><a class="mzb" href="?plan=${p.id}" data-plan="${p.id}">${foto(p,52)}<div class="ov"><b>${e(tx(p,'nombre'))}</b><span>${e([zona(p),fe,precioTx(p)].filter(Boolean).join(' · '))}</span></div></a>${heart(p)}</div>`;
+}
 // Each theme has its own look, so the home page doesn't feel repetitive
 // Layouts: hero, carr, wide, top (big numbers), rank (small numbers), mosaico (1 big + 2 small), lista, grid
 const LAYOUT={must:'hero',hoy:'carr',semana:'mosaico',ultima:'lista',finde:'grid',picks:'vert',pronto:'lista',gratis:'grid',nuevo:'carr'};
@@ -509,7 +521,8 @@ function fila(k,arr,total,lay){
  else if(lay==='lista')body=`<div class="lis">${arr.map(p=>tarjetaRow(p,k)).join('')}</div>${boton}`;
  else if(lay==='grid')body=`<div class="gr">${arr.map(p=>tarjetaFila(p,false)).join('')}</div>${boton}`;
  else if(lay==='wide'||lay==='vert')body=`<div class="carr">${arr.map(p=>tarjetaFila(p,false).replace('class="rc"',`class="rc ${lay}"`)).join('')}${tile(lay)}</div>`;
- else body=`<div class="carr">${arr.map(p=>tarjetaFila(p,lay==='hero')).join('')}${tile(lay==='hero'?'big':'')}</div>`;
+ else if(lay==='hero')body=`<div class="carr">${arr.map(tarjetaHero).join('')}${tile('big')}</div>`;
+ else body=`<div class="carr">${arr.map(p=>tarjetaFila(p,false)).join('')}${tile('')}</div>`;
  return `<section class="fila">${head}${body}</section>`;
 }
 // Each plan appears only once on the home page: in the first row it fits
