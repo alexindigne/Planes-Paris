@@ -524,6 +524,20 @@ html header#hdr,html header#hdr.sc{padding-bottom:4px;margin-bottom:-4px}
 .dark .aplica,.dark .dia.on,.dark .rk,.dark .leaflet-popup-content button,.dark #toast{color:#0b0b0b}
 .dark .dia.on{background:#fff}
 .dark .dia.hoy:not(.on){color:var(--acc)}
+
+/* ===== v18: motion polish ===== */
+.asa-z{padding:6px 0 10px;cursor:grab;touch-action:none;flex:none}
+.asa-z .asa{margin:4px auto 0}
+.sx{position:absolute;top:12px;right:14px;width:34px;height:34px;border-radius:50%;border:0;background:rgba(0,0,0,.06);color:var(--tx);display:flex;align-items:center;justify-content:center;z-index:2}
+.dark .sx{background:rgba(255,255,255,.1)}
+.dark .asa{background:#444}
+#sheet{will-change:transform}
+.chip{transition:background-color .32s ease,color .32s ease,border-color .32s ease,box-shadow .32s ease,transform .35s cubic-bezier(.34,1.5,.64,1)}
+.dia{transition:background-color .25s ease,color .25s ease}
+
+.dark .catb.on{background:var(--c);border-color:var(--c);color:#fff}
+.dark .catb.on .dot{background:#fff}
+#cal{touch-action:pan-y}
 </style></head><body>
 <header id="hdr"><div class="vid" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><b class="tinte"></b></div><div class="hin">
  <div class="logo"><b>planin<span>paris</span></b><button class="chip tema" id="tema" aria-label="Dark mode"><svg class="luna" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="sol" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button></div>
@@ -535,7 +549,7 @@ html header#hdr,html header#hdr.sc{padding-bottom:4px;margin-bottom:-4px}
 <nav class="bn" aria-label="Main"><div class="in" id="nav"></div></nav>
 <div id="ficha" aria-hidden="true"><div id="fx-sc"><div id="fx"></div></div><div id="fbar"></div></div>
 <div id="velo"></div>
-<div id="sheet"><div class="asa"></div><div id="sheet-c"></div><div class="sheet-f"><button class="lnk" data-borrar="1" id="borrarT"></button><button class="aplica" data-aplicar="1" id="verN"></button></div></div>
+<div id="sheet"><div class="asa-z"><div class="asa"></div></div><div id="sheet-c"></div><div class="sheet-f"><button class="lnk" data-borrar="1" id="borrarT"></button><button class="aplica" data-aplicar="1" id="verN"></button></div></div>
 <div id="full"><div class="full-top"><span id="full-t"></span><button data-cerrar="1" id="full-x" aria-label="Close map"></button></div><div id="full-map"></div><a id="full-dir" target="_blank" rel="noopener"></a></div>
 <button id="arriba" data-arriba="1" aria-label="Back to top"></button>
 <div id="toast" role="status"></div>
@@ -868,9 +882,9 @@ function setHdr(){requestAnimationFrame(()=>document.documentElement.style.setPr
 function pintarCabecera(){
  document.title=fichaId==null?NOMBRE:document.title;
  const nf=numFiltros();
- $('rapidos').innerHTML=`<button class="chip lupa" data-lupa="1" aria-label="Search">${I('search',18)}</button><button class="chip${igual(st.dias,conj('hoy'))?' on':''}" data-rap="hoy">${S.hoy}</button>
+ setRapidos(`<button class="chip lupa" data-lupa="1" aria-label="Search">${I('search',18)}</button><button class="chip${igual(st.dias,conj('hoy'))?' on':''}" data-rap="hoy">${S.hoy}</button>
  <button class="chip${igual(st.dias,conj('finde'))?' on':''}" data-rap="finde">${S.finde}</button>
- <button class="chip${nf?' on':''}" data-abrirf="1">${I('sliders',16)}${S.filtros}${nf?`<span class="n">${nf}</span>`:''}</button>`;
+ <button class="chip${nf?' on':''}" data-abrirf="1">${I('sliders',16)}${S.filtros}${nf?`<span class="n">${nf}</span>`:''}</button>`);
  const pills=[];
  if(st.dias.size&&!igual(st.dias,conj('hoy'))&&!igual(st.dias,conj('finde')))pills.push(`<button class="pill" data-qdias="1">${I('cal',13)}${st.dias.size===1?fd([...st.dias][0]):st.dias.size+' '+S.dias}${I('x',12)}</button>`);
  if(st.gratis)pills.push(`<button class="pill" data-qgratis="1">${S.gratis}${I('x',12)}</button>`);
@@ -1113,6 +1127,7 @@ document.addEventListener('click',ev=>{
  else if(ds.lupa){abrirBusca()}
  else if(ds.qx){cerrarBusca()}
  else if(ds.abrirf)abrirSheet();
+ else if(ds.cerrars)cerrarSheet();
  else if(ds.aplicar){cerrarSheet();scrollTo(0,0)}
  else if(ds.borrar){st.dias=new Set();st.cats=new Set();st.gratis=false;st.sel=false;st.q='';$('q').value='';pintar()}
  else if(ds.rap){const arr=conj(ds.rap);st.dias=igual(st.dias,arr)?new Set():new Set(arr);pintar();if(!sheetOn)scrollTo(0,0)}
@@ -1121,9 +1136,64 @@ document.addEventListener('click',ev=>{
  else if(ds.qsel){st.sel=!st.sel;pintar()}
  else if('cat' in ds){st.cats.has(ds.cat)?st.cats.delete(ds.cat):st.cats.add(ds.cat);pintar()}
  else if(ds.qdias){st.dias=new Set();pintar()}
- else if(ds.mes){const n=new Date(st.mes.getFullYear(),st.mes.getMonth()+Number(ds.mes),1),h=new Date();if(n>=new Date(h.getFullYear(),h.getMonth(),1)){st.mes=n;pintarCal()}}
+ else if(ds.mes)cambiarMes(Number(ds.mes));
  else if(ds.dia){st.dias.has(ds.dia)?st.dias.delete(ds.dia):st.dias.add(ds.dia);pintar()}
 });
+
+// ===== Motion: chips, content cross-fade, page slides, draggable filter sheet =====
+function setRapidos(html){
+ const R=$('rapidos');if(!R)return;
+ const t=document.createElement('div');t.innerHTML=html;const nu=[...t.children],vi=[...R.children];
+ const igualForma=nu.length===vi.length&&nu.every((n,i)=>JSON.stringify(n.dataset)===JSON.stringify(vi[i].dataset));
+ if(!igualForma||document.querySelector('.hin.busca')){R.innerHTML=html;return}
+ nu.forEach((n,i)=>{const v=vi[i];if(v.className!==n.className)v.className=n.className;if(v.innerHTML!==n.innerHTML)v.innerHTML=n.innerHTML});
+}
+const firmaFiltros=()=>JSON.stringify([[...st.dias].sort(),[...st.cats].sort(),st.gratis,st.sel,st.vista]);
+let _firma=null,_tema=undefined;
+const _pintarLista=pintarLista;
+pintarLista=function(){
+ const L=$('lista'),f=firmaFiltros(),tm=st.tema,listo=st.cargado;
+ const antesF=_firma,antesT=_tema;_firma=f;_tema=tm;
+ if(!listo||antesT===undefined||matchMedia('(prefers-reduced-motion: reduce)').matches){_pintarLista();return}
+ L.getAnimations().forEach(a=>a.cancel());
+ if(tm!==antesT){            // "See all" opens (slides in from the right) or closes (back from the left)
+  _pintarLista();const dentro=tm&&!antesT;
+  L.animate([{opacity:0,transform:`translateX(${dentro?'38%':'-24%'})`},{opacity:1,transform:'none'}],{duration:440,easing:'cubic-bezier(.32,.72,0,1)'});
+  return}
+ if(f!==antesF){            // a filter changed: quick fade out, new content fades in (Spotify-style)
+  const a=L.animate([{opacity:1},{opacity:0}],{duration:120,easing:'ease-in',fill:'forwards'});
+  a.onfinish=()=>{_pintarLista();a.cancel();L.animate([{opacity:0,transform:'translateY(6px)'},{opacity:1,transform:'none'}],{duration:260,easing:'cubic-bezier(.2,.8,.2,1)'})};
+  return}
+ _pintarLista();
+};
+(function(){
+ const sh=$('sheet'),sc=$('sheet-c');let y0=null,dy=0,t0=0,arrastra=false;
+ sh.addEventListener('touchstart',e=>{if(!sh.classList.contains('on'))return;const enAsa=!!e.target.closest('.asa-z');
+  if(!enAsa&&sc.scrollTop>0)return;if(e.target.closest('.cal-g,.row,input'))return;
+  y0=e.touches[0].clientY;dy=0;t0=Date.now();arrastra=enAsa},{passive:true});
+ sh.addEventListener('touchmove',e=>{if(y0==null)return;dy=e.touches[0].clientY-y0;
+  if(!arrastra){if(dy>8&&sc.scrollTop<=0)arrastra=true;else if(dy<0){y0=null;return}}
+  if(arrastra){if(e.cancelable)e.preventDefault();sh.style.transition='none';sh.style.transform=`translateY(${Math.max(0,dy)}px)`;$('velo').style.opacity=String(Math.max(0,1-dy/400))}},{passive:false});
+ const fin=()=>{if(y0==null)return;const v=dy/Math.max(1,Date.now()-t0);y0=null;sh.style.transition='';$('velo').style.opacity='';
+  if(arrastra&&(dy>110||v>.6)){sh.style.transform='';cerrarSheet()}else sh.style.transform='';arrastra=false};
+ sh.addEventListener('touchend',fin);sh.addEventListener('touchcancel',fin);
+})();
+
+// Calendar: change month with the arrows or by swiping left/right
+function cambiarMes(d){
+ const n=new Date(st.mes.getFullYear(),st.mes.getMonth()+d,1),h=new Date();
+ if(n<new Date(h.getFullYear(),h.getMonth(),1)){const g=document.querySelector('#cal .cal-g');g&&g.animate([{transform:'none'},{transform:'translateX(14px)'},{transform:'none'}],{duration:260,easing:'ease-out'});return}
+ st.mes=n;pintarCal();
+ const g=document.querySelector('#cal .cal-g'),t=document.querySelector('#cal .cal-h b');
+ const k={duration:380,easing:'cubic-bezier(.32,.72,0,1)'};
+ g&&g.animate([{opacity:0,transform:`translateX(${d>0?44:-44}px)`},{opacity:1,transform:'none'}],k);
+ t&&t.animate([{opacity:0,transform:`translateX(${d>0?16:-16}px)`},{opacity:1,transform:'none'}],k);
+}
+(function(){let x0=null,y0=null;
+ document.addEventListener('touchstart',e=>{const c=e.target.closest('#cal');if(!c){x0=null;return}x0=e.touches[0].clientX;y0=e.touches[0].clientY},{passive:true});
+ document.addEventListener('touchend',e=>{if(x0==null)return;const t=e.changedTouches[0],dx=t.clientX-x0,dy=t.clientY-y0;x0=null;
+  if(Math.abs(dx)>45&&Math.abs(dx)>Math.abs(dy)*1.3)cambiarMes(dx<0?1:-1)},{passive:true});
+})();
 async function cargar(){
  try{
   const [r1,r2]=await Promise.all([api('planes?select=*&estado=eq.aprobado&or=(fecha_fin.gte.'+HOY+',fecha_fin.is.null)'),api('resumen_valoraciones?select=*')]);
