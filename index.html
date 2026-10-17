@@ -728,7 +728,7 @@ function filtrar(){
   &&(!q||sinAc([tx(p,'nombre'),tx(p,'subtitulo'),p.lugar,p.organizador,catTx(p),lista(p.puntos).join(' ')].join(' ')).includes(q)))
   .sort(porFecha);
 }
-const temaLista=k=>filtrar().filter(TEMAS[k].ok).sort(TEMAS[k].ord);
+const temaLista=k=>{const l=filtrar().filter(TEMAS[k].ok).sort(TEMAS[k].ord);return k==='finde'&&st.tdia?l.filter(p=>enDia(p,st.tdia)):l};
 
 // ===== CARDS =====
 let CTX='';   // which home row is being drawn: a badge never repeats what the row title already says
@@ -868,9 +868,10 @@ const POR_DIA=6;
 function diasHTML(arr){
  const dias=finde().filter(d=>arr.some(p=>enDia(p,d)));
  if(dias.length<2)return `<div class="carr">${arr.slice(0,8).map(p=>tarjetaFila(p,false)).join('')}</div>`;
- const tabs=dias.map((d,i)=>{const x=parse(d),n=arr.filter(p=>enDia(p,d)).length;
+ const total=d=>st.datos.filter(p=>TEMAS.finde.ok(p)&&enDia(p,d)).length;
+ const tabs=dias.map((d,i)=>{const x=parse(d),n=total(d);
   return `<button class="dtab${i?'':' on'}" data-dtab="${i}" role="tab" aria-selected="${!i}"><small>${d===HOY?S.hoy:S.ds[x.getDay()]}</small><b>${x.getDate()}</b><i>${n} ${S.planes}</i></button>`}).join('');
- const panes=dias.map((d,i)=>`<div class="carr dpane${i?'':' on'}" role="tabpanel">${arr.filter(p=>enDia(p,d)).slice(0,POR_DIA).map(p=>tarjetaFila(p,false)).join('')}</div>`).join('');
+ const panes=dias.map((d,i)=>{const l=arr.filter(p=>enDia(p,d));return `<div class="carr dpane${i?'':' on'}" role="tabpanel">${l.slice(0,POR_DIA).map(p=>tarjetaFila(p,false)).join('')}<a class="todo" href="?see=finde&dia=${d}" data-see="finde" data-sdia="${d}"><div class="ft"><span class="ci">${I('right',20)}</span><b>${S.verTodo}</b><small>${total(d)} ${S.planes}</small></div></a></div>`}).join('');
  return `<div class="dtabs" role="tablist"><span class="dind"></span>${tabs}</div><div class="dpanes">${panes}</div>`;
 }
 function moverInd(box){const on=box.querySelector('.dtab.on'),ind=box.querySelector('.dind');if(!on||!ind)return;ind.style.width=on.offsetWidth+'px';ind.style.transform=`translateX(${on.offsetLeft}px)`}
@@ -905,7 +906,7 @@ function pintarLista(){
  if(st.error){$('lista').innerHTML=vacioHTML(S.error,'');return}
  if(!st.cargado){$('lista').innerHTML=esqueleto();return}
  if(enMapa){pintarMapa(st.tema?temaLista(st.tema):filtrar());return}
- if(st.tema)$('lista').innerHTML=pagina(TEMAS[st.tema].t,temaLista(st.tema),true);
+ if(st.tema)$('lista').innerHTML=pagina(st.tdia?(st.tdia===HOY?S.hoy:fd(st.tdia)):TEMAS[st.tema].t,temaLista(st.tema),true);
  else if(hayFiltros())$('lista').innerHTML=pagina(tituloRes(),filtrar(),false);
  else $('lista').innerHTML=inicioHTML();
 }
@@ -1033,7 +1034,8 @@ async function cargarComs(id){
 function ruta(){
  const u=new URLSearchParams(location.search);
  const k=u.get('see'),tema=TEMAS[k]?k:null;
- if(tema!==st.tema){st.tema=tema;pintar();scrollTo(0,0)}
+ const dd=u.get('dia'),tdia=tema==='finde'&&/^\d{4}-\d\d-\d\d$/.test(dd||'')?dd:null;
+ if(tema!==st.tema||tdia!==st.tdia){st.tema=tema;st.tdia=tdia;pintar();scrollTo(0,0)}
  const pid=+u.get('plan')||null;
  if(pid&&st.cargado&&st.datos.some(p=>p.id===pid)){if(fichaId!==pid)abrirFicha(pid)}
  else if(st.cargado||!pid)cerrarFicha();
@@ -1110,7 +1112,7 @@ document.addEventListener('click',ev=>{
   if(ev.metaKey||ev.ctrlKey||ev.shiftKey)return;
   ev.preventDefault();
   if(a.dataset.plan)ir({plan:+a.dataset.plan});
-  else if(a.dataset.see)ir({see:a.dataset.see,plan:null});
+  else if(a.dataset.see)ir({see:a.dataset.see,dia:a.dataset.sdia||null,plan:null});
   else volver();
   return;
  }
@@ -1155,7 +1157,7 @@ const firmaFiltros=()=>JSON.stringify([[...st.dias].sort(),[...st.cats].sort(),s
 let _firma=null,_tema=undefined;
 const _pintarLista=pintarLista;
 pintarLista=function(){
- const L=$('lista'),f=firmaFiltros(),tm=st.tema,listo=st.cargado;
+ const L=$('lista'),f=firmaFiltros(),tm=st.tema?st.tema+(st.tdia||''):null,listo=st.cargado;
  const antesF=_firma,antesT=_tema;_firma=f;_tema=tm;
  if(!listo||antesT===undefined||matchMedia('(prefers-reduced-motion: reduce)').matches){_pintarLista();return}
  L.getAnimations().forEach(a=>a.cancel());
