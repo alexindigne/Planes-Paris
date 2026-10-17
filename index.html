@@ -485,6 +485,45 @@ html header#hdr,html header#hdr.sc{padding-bottom:4px;margin-bottom:-4px}
 .vid i:nth-child(3){-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);-webkit-mask-image:linear-gradient(#000 calc(100% - 30px),rgba(0,0,0,.6) calc(100% - 20px),rgba(0,0,0,.2) calc(100% - 10px),transparent calc(100% - 0px));mask-image:linear-gradient(#000 calc(100% - 30px),rgba(0,0,0,.6) calc(100% - 20px),rgba(0,0,0,.2) calc(100% - 10px),transparent calc(100% - 0px))}
 .vid .tinte{background:linear-gradient(rgba(255,255,255,.9) 0%,rgba(255,255,255,.86) calc(100% - 64px),rgba(255,255,255,.8) calc(100% - 50px),rgba(255,255,255,.66) calc(100% - 40px),rgba(255,255,255,.48) calc(100% - 31px),rgba(255,255,255,.3) calc(100% - 22px),rgba(255,255,255,.15) calc(100% - 14px),rgba(255,255,255,.05) calc(100% - 7px),rgba(255,255,255,0) 100%)}
 .dark .vid .tinte{background:linear-gradient(rgba(18,18,18,.9) 0%,rgba(18,18,18,.86) calc(100% - 64px),rgba(18,18,18,.8) calc(100% - 50px),rgba(18,18,18,.66) calc(100% - 40px),rgba(18,18,18,.48) calc(100% - 31px),rgba(18,18,18,.3) calc(100% - 22px),rgba(18,18,18,.15) calc(100% - 14px),rgba(18,18,18,.05) calc(100% - 7px),rgba(18,18,18,0) 100%)}
+
+/* ===== v16: calmer home ===== */
+.fila{padding-top:40px}
+.fh{padding-bottom:16px}
+.vt-b.sa,.dark .vt-b.sa{width:auto;height:auto;border:0;background:none;padding:6px 0 6px 8px;gap:2px;font-size:14px;font-weight:700;color:var(--mu);border-radius:0}
+.vt-b.sa .ic{margin-right:-4px}
+.dtabs{position:relative;display:flex;gap:4px;margin:0 20px 14px;padding:4px;border-radius:14px;background:#f1f1f1;width:max-content;max-width:calc(100% - 40px)}
+.dark .dtabs{background:#232323}
+.dind{position:absolute;top:4px;bottom:4px;left:0;border-radius:10px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.12);transition:transform .38s cubic-bezier(.32,.72,0,1),width .38s cubic-bezier(.32,.72,0,1)}
+.dark .dind{background:#3a3a3a;box-shadow:none}
+.dtab{position:relative;z-index:1;border:0;background:none;height:34px;padding:0 14px;border-radius:10px;font:inherit;font-size:14px;font-weight:700;color:var(--mu);display:inline-flex;align-items:center;gap:6px;transition:color .25s}
+.dtab.on{color:var(--tx)}
+.dtab small{font-size:11px;font-weight:700;opacity:.55}
+.dpane{display:none}.dpane.on{display:flex}
+.fila .rc.wide{width:min(76vw,310px)}
+
+/* ===== v17: weekend module (its own panel + calendar tiles), subtle Our pick label ===== */
+.fila.wk{margin:40px 12px 0;padding:22px 0 20px;border-radius:26px;background:linear-gradient(160deg,#f6f1ea,#efeee9)}
+.dark .fila.wk{background:linear-gradient(160deg,#211c19,#1a1a1a);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.06)}
+.fila.wk .fh{padding:0 18px 16px}
+.fila.wk .carr{padding:0 18px 4px;scroll-padding-left:18px}
+.fila.wk .dtabs{background:none;padding:0;margin:0 18px 18px;gap:10px;border-radius:0;max-width:none}
+.fila.wk .dind{top:0;bottom:0;border-radius:18px;background:var(--tx);box-shadow:0 6px 18px rgba(0,0,0,.18)}
+.dark .fila.wk .dind{background:#fff}
+.fila.wk .dtab{flex-direction:column;justify-content:center;gap:0;height:auto;width:78px;padding:10px 0 9px;border-radius:18px;background:rgba(0,0,0,.04);color:var(--tx)}
+.dark .fila.wk .dtab{background:rgba(255,255,255,.06)}
+.fila.wk .dtab small{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;opacity:.6}
+.fila.wk .dtab b{font-size:28px;font-weight:800;letter-spacing:-.04em;line-height:1.1}
+.fila.wk .dtab i{font-style:normal;font-size:10.5px;font-weight:700;opacity:.55}
+.fila.wk .dtab.on{color:var(--bg);background:none}
+.fila.wk .dtab.on small,.fila.wk .dtab.on i{opacity:.75}
+.tag.pick{gap:4px;background:rgba(255,255,255,.88);color:#111}
+.dark .tag.pick{background:rgba(0,0,0,.55);color:#fff;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px)}
+.tag.pick svg{fill:currentColor;stroke:none}
+
+/* dark mode: white fills need dark text */
+.dark .aplica,.dark .dia.on,.dark .rk,.dark .leaflet-popup-content button,.dark #toast{color:#0b0b0b}
+.dark .dia.on{background:#fff}
+.dark .dia.hoy:not(.on){color:var(--acc)}
 </style></head><body>
 <header id="hdr"><div class="vid" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><b class="tinte"></b></div><div class="hin">
  <div class="logo"><b>planin<span>paris</span></b><button class="chip tema" id="tema" aria-label="Dark mode"><svg class="luna" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="sol" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button></div>
@@ -513,8 +552,8 @@ const POR_FILA=8;    // plans per row on the home page (then "See all")
 const MIN_FILA=3;    // a row only appears if it has at least this many plans
 
 // Home rows, in order. Mon-Wed: the weekend goes lower. Thu-Sun: it goes up.
-const ORDEN_LMX=['must','hoy','semana','finde','ultima','picks','gratis','pronto','nuevo'];
-const ORDEN_JD =['must','hoy','finde','semana','ultima','picks','gratis','pronto','nuevo'];
+const ORDEN_LMX=['must','hoy','semana','finde','ultima','gratis','nuevo','pronto'];
+const ORDEN_JD =['must','hoy','finde','semana','ultima','gratis','nuevo','pronto'];
 
 const CAT={'música':'#7c3aed','expo':'#2563eb','pop-up':'#db2777','mercado':'#16a34a','festival':'#ea580c','cine':'#dc2626','aire libre':'#0d9488','otro':'#6b7280'};
 const CATBG={'música':'#efe9fc','expo':'#e6edfc','pop-up':'#fce8f1','mercado':'#e4f4e9','festival':'#fdede1','cine':'#fce7e7','aire libre':'#e0f3f0','otro':'#efeff1'};
@@ -656,7 +695,7 @@ const TEMAS={
  must:{t:'Must-dos',s:()=>'The big moments in Paris right now',ok:p=>!!p.imprescindible,ord:rotada,min:1},
  hoy:{t:"What's on today",s:()=>fd(HOY),ok:p=>enDia(p,HOY),ord:rotada},
  semana:{t:'Best of the week',s:()=>'Next 7 days',ok:p=>SEMANA.some(d=>enDia(p,d)),ord:rotada},
- finde:{t:'This weekend',s:()=>{const f=finde();return f.length>1?fd(f[0])+' – '+fd(f[f.length-1]):fd(f[0])},ok:p=>finde().some(d=>enDia(p,d)),ord:rotada},
+ finde:{t:'This weekend',s:()=>finde().length>1?'Pick your day':fd(finde()[0]),ok:p=>finde().some(d=>enDia(p,d)),ord:rotada},
  ultima:{t:'Last chance',s:()=>'Ending in the next 7 days',ok:p=>{const fin=ultima(p),ini=inicio(p);return !!fin&&fin>=HOY&&fin<=EN7&&(!ini||(ini<=HOY&&ini<fin))&&continuo(p)},ord:(a,b)=>String(ultima(a)).localeCompare(String(ultima(b)))||porNota(a,b)},
  picks:{t:'Our picks',s:()=>'Our favourite plans right now',ok:esSel,ord:rotada,repite:true},
  pronto:{t:'Starting soon',s:()=>'Opening in the next few days',ok:p=>{const i=inicio(p);return !!i&&i>HOY&&i<=EN7},ord:(a,b)=>String(inicio(a)).localeCompare(String(inicio(b)))||porNota(a,b)},
@@ -675,13 +714,14 @@ function filtrar(){
 const temaLista=k=>filtrar().filter(TEMAS[k].ok).sort(TEMAS[k].ord);
 
 // ===== CARDS =====
+let CTX='';   // which home row is being drawn: a badge never repeats what the row title already says
 function tag(p){
  const ult=ultima(p),ini=inicio(p);
- if(p.imprescindible)return `<span class="tag imp">${S.imp}</span>`;
+ if(p.imprescindible)return CTX==='must'?'':`<span class="tag imp">${S.imp}</span>`;
+ if(CTX==='ultima')return '';
  if(ult===HOY&&(!ini||ini<HOY))return `<span class="tag urge">${S.ultimo}</span>`;
  if(ult&&p.tipo==='largo'&&diasEntre(HOY,ult)<=3)return `<span class="tag urge">${S.pronto}</span>`;
- if(esSel(p))return `<span class="tag">${S.seleccion}</span>`;
- if(p.creado_en&&Date.now()-new Date(p.creado_en)<48*3600e3)return `<span class="tag">${S.nuevo}</span>`;
+ if(esSel(p))return `<span class="tag pick">${STAR(true,10)}${S.seleccion}</span>`;
  return '';
 }
 function badges(p){
@@ -705,14 +745,14 @@ function tarjetaFila(p,big,extra=''){
  const fe=fechas(p),nom=e(tx(p,'nombre'));
  const txt=big
   ?`<span>${e(zona(p))}</span>${fe?`<span>${e(fe)}</span>`:''}<span>${precioHTML(p)}${rateHTML(p)}</span>`
-  :`<span>${e(catTx(p))} · ${e(zona(p))}</span><span>${precioHTML(p)}${fe?' · '+e(fe):''}</span>`;
+  :`<span>${e(zona(p))}</span><span>${precioHTML(p)}${fe?' · '+e(fe):''}</span>`;
  return `<div class="rc${big?' big':''}"><a class="rl" href="?plan=${p.id}" data-plan="${p.id}">${foto(p,big?56:40,true,extra)}<div class="rt"><b>${nom}</b>${txt}</div></a>${heart(p)}</div>`;
 }
 // Compact row (thumbnail + text) for the list layout
 function tarjetaRow(p,k){
  const fe=fechas(p),ult=ultima(p),ini=inicio(p);
  const kk=k==='ultima'&&ult?(ult===HOY?S.ultimo:S.acaba+fd(ult)):k==='pronto'&&ini?S.abre+fd(ini):'';
- return `<div class="li"><a class="rl" href="?plan=${p.id}" data-plan="${p.id}">${foto(p,30,false)}<div class="rt">${kk?`<span class="kk">${e(kk)}</span>`:''}<b>${e(tx(p,'nombre'))}</b><span>${e(catTx(p))} · ${e(zona(p))}</span><span>${precioHTML(p)}${fe&&!kk?' · '+e(fe):''}${rateHTML(p)}</span></div></a>${heart(p)}</div>`;
+ return `<div class="li"><a class="rl" href="?plan=${p.id}" data-plan="${p.id}">${foto(p,30,false)}<div class="rt">${kk?`<span class="kk">${e(kk)}</span>`:''}<b>${e(tx(p,'nombre'))}</b><span>${e(zona(p))}</span><span>${precioHTML(p)}${fe&&!kk?' · '+e(fe):''}${rateHTML(p)}</span></div></a>${heart(p)}</div>`;
 }
 // Must-dos: big landscape photo with the text inside
 function tarjetaHero(p){
@@ -721,24 +761,25 @@ function tarjetaHero(p){
 }
 // Each theme has its own look, so the home page doesn't feel repetitive
 // Layouts: hero, carr, wide, top (big numbers), rank (small numbers), mosaico (1 big + 2 small), lista, grid
-const LAYOUT={must:'hero',hoy:'carr',semana:'mosaico',ultima:'lista',finde:'grid',picks:'vert',pronto:'lista',gratis:'grid',nuevo:'carr'};
-const CUANTOS={hero:8,carr:8,wide:6,vert:8,top:5,rank:5,mosaico:3,lista:4,grid:4};
+const LAYOUT={must:'hero',hoy:'carr',semana:'mosaico',ultima:'lista',finde:'dias',picks:'vert',pronto:'lista',gratis:'carr',nuevo:'carr'};
+const CUANTOS={hero:8,carr:8,wide:6,vert:8,top:5,rank:5,mosaico:3,lista:4,grid:4,dias:40};
 function fila(k,arr,total,lay){
  const T=TEMAS[k],ver=`?see=${k}`;
- const head=`<div class="fh"><div><h2>${T.t}</h2><p>${e(T.s())}</p></div><a class="vt-b" href="${ver}" data-see="${k}" aria-label="${S.verTodo}: ${e(T.t)}">${I('right',16)}</a></div>`;
+ const head=`<div class="fh"><div><h2>${T.t}</h2><p>${e(T.s())}</p></div><a class="vt-b sa" href="${ver}" data-see="${k}" aria-label="${S.verTodo}: ${e(T.t)}">${S.verTodo}${I('right',14)}</a></div>`;
  const tile=cls=>total>arr.length?`<a class="todo${cls?' '+cls:''}" href="${ver}" data-see="${k}"><div class="ft"><span class="ci">${I('right',20)}</span><b>${S.verTodo}</b><small>${total} ${S.planes}</small></div></a>`:'';
- const boton=total>arr.length?`<a class="vermas" href="${ver}" data-see="${k}">${S.verN2.replace('{n}',total)}</a>`:'';
+ const boton='';CTX=k;
  let body;
  if(lay==='top')body=`<div class="top">${arr.map((p,i)=>`<div class="tk"><span class="num" aria-hidden="true">${i+1}</span>${tarjetaFila(p,false)}</div>`).join('')}</div>${boton}`;
  else if(lay==='rank')body=`<div class="carr">${arr.map((p,i)=>tarjetaFila(p,false,`<span class="rk" aria-label="Number ${i+1}">${i+1}</span>`)).join('')}${tile(false)}</div>`;
  else if(lay==='mosaico'){const [a1,...resto]=arr,fe=fechas(a1);
   body=`<div class="mos"><div class="mz"><a class="mzb" href="?plan=${a1.id}" data-plan="${a1.id}">${foto(a1,64)}<div class="ov"><b>${e(tx(a1,'nombre'))}</b><span>${e([catTx(a1),zona(a1),fe,precioTx(a1)].filter(Boolean).join(' · '))}</span></div></a>${heart(a1)}</div>${resto.length?`<div class="gr">${resto.map(p=>tarjetaFila(p,false)).join('')}</div>`:''}</div>${boton}`;}
+ else if(lay==='dias')body=diasHTML(arr);
  else if(lay==='lista')body=`<div class="lis">${arr.map(p=>tarjetaRow(p,k)).join('')}</div>${boton}`;
  else if(lay==='grid')body=`<div class="gr">${arr.map(p=>tarjetaFila(p,false)).join('')}</div>${boton}`;
  else if(lay==='wide'||lay==='vert')body=`<div class="carr">${arr.map(p=>tarjetaFila(p,false).replace('class="rc"',`class="rc ${lay}"`)).join('')}${tile(lay)}</div>`;
  else if(lay==='hero')body=`<div class="carr">${arr.map(tarjetaHero).join('')}${tile('big')}</div>`;
  else body=`<div class="carr">${arr.map(p=>tarjetaFila(p,false)).join('')}${tile('')}</div>`;
- return `<section class="fila">${head}${body}</section>`;
+ return `<section class="fila${lay==='dias'?' wk':''}">${head}${body}</section>`;
 }
 // Each plan appears only once on the home page: in the first row it fits
 function inicioHTML(){
@@ -747,12 +788,13 @@ function inicioHTML(){
   const T=TEMAS[k],todos=st.datos.filter(T.ok).sort(T.ord),libres=T.repite?todos:todos.filter(p=>!usados.has(p.id));
   if(libres.length<(T.min||MIN_FILA))continue;
   let lay=LAYOUT[k]||'carr';
-  if(lay===prev)lay=lay==='carr'?'grid':'carr';      // never two rows in a row with the same look
-  if(lay==='grid'&&libres.length<4)lay='lista';       // a 2x2 grid needs 4 plans
+  if(lay===prev)lay=lay==='carr'?'wide':'carr';      // never two rows in a row with the same look
   const arr=libres.slice(0,CUANTOS[lay]);
-  if(!T.repite)arr.forEach(p=>usados.add(p.id));
+  if(lay==='dias')finde().forEach(d=>arr.filter(p=>enDia(p,d)).slice(0,POR_DIA).forEach(p=>usados.add(p.id)));
+  else if(!T.repite)arr.forEach(p=>usados.add(p.id));
   h+=fila(k,arr,todos.length,lay);prev=lay;
  }
+ CTX='';
  return h||vacioHTML(S.vacio,'');
 }
 const vacioHTML=(tit,sub,boton)=>`<div class="vacio">${I('search',30)}<b>${tit}</b>${sub?`<p>${sub}</p>`:''}${boton?`<button class="btn" data-borrar="1">${S.quitar}</button>`:''}</div>`;
@@ -803,6 +845,24 @@ function cerrarBusca(){
   st.q='';$('q').value='';$('qx').hidden=true;pintarLista();if(sheetOn)pintarSheet();
   setTimeout(()=>[...r.children].forEach(c=>c.getAnimations().forEach(x=>x.cancel())),800)};
 }
+
+// This weekend: one row, a tab per day (Fri / Sat / Sun) - it reads as one theme, not two
+const POR_DIA=6;
+function diasHTML(arr){
+ const dias=finde().filter(d=>arr.some(p=>enDia(p,d)));
+ if(dias.length<2)return `<div class="carr">${arr.slice(0,8).map(p=>tarjetaFila(p,false)).join('')}</div>`;
+ const tabs=dias.map((d,i)=>{const x=parse(d),n=arr.filter(p=>enDia(p,d)).length;
+  return `<button class="dtab${i?'':' on'}" data-dtab="${i}" role="tab" aria-selected="${!i}"><small>${d===HOY?S.hoy:S.ds[x.getDay()]}</small><b>${x.getDate()}</b><i>${n} ${S.planes}</i></button>`}).join('');
+ const panes=dias.map((d,i)=>`<div class="carr dpane${i?'':' on'}" role="tabpanel">${arr.filter(p=>enDia(p,d)).slice(0,POR_DIA).map(p=>tarjetaFila(p,false)).join('')}</div>`).join('');
+ return `<div class="dtabs" role="tablist"><span class="dind"></span>${tabs}</div><div class="dpanes">${panes}</div>`;
+}
+function moverInd(box){const on=box.querySelector('.dtab.on'),ind=box.querySelector('.dind');if(!on||!ind)return;ind.style.width=on.offsetWidth+'px';ind.style.transform=`translateX(${on.offsetLeft}px)`}
+document.addEventListener('click',ev=>{const b=ev.target.closest('[data-dtab]');if(!b)return;ev.preventDefault();ev.stopPropagation();
+ const box=b.parentElement,sec=box.parentElement,i=+b.dataset.dtab;
+ box.querySelectorAll('.dtab').forEach((t,j)=>{t.classList.toggle('on',j===i);t.setAttribute('aria-selected',j===i)});moverInd(box);
+ sec.querySelectorAll('.dpane').forEach((pn,j)=>{if(j===i){pn.classList.add('on');pn.scrollLeft=0;pn.animate([{opacity:0,transform:'translateX(18px)'},{opacity:1,transform:'none'}],{duration:380,easing:'cubic-bezier(.32,.72,0,1)'})}else pn.classList.remove('on')})},true);
+new MutationObserver(()=>document.querySelectorAll('.dtabs').forEach(moverInd)).observe(document.body,{childList:true,subtree:true});
+addEventListener('resize',()=>document.querySelectorAll('.dtabs').forEach(moverInd));
 // ===== PAINT =====
 function setHdr(){requestAnimationFrame(()=>document.documentElement.style.setProperty('--hdr',$('hdr').offsetHeight+'px'))}
 function pintarCabecera(){
