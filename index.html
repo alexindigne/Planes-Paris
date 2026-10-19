@@ -553,15 +553,9 @@ html.ios-barra main{padding-bottom:calc(var(--nav) + 100px + env(safe-area-inset
 #ficha .rb{width:42px;height:42px;background:rgba(20,20,20,.42);color:#fff;-webkit-backdrop-filter:blur(16px) saturate(170%);backdrop-filter:blur(16px) saturate(170%);box-shadow:inset 0 0 0 .5px rgba(255,255,255,.18),0 4px 14px rgba(0,0,0,.18)}
 #ficha .rb.on svg{fill:#ff3b4f;stroke:#ff3b4f}
 /* once past the photo: the same soft blur + dimming as the home header, no title */
-#fx-top{position:absolute;left:0;right:0;top:0;z-index:35;height:calc(86px + env(safe-area-inset-top));pointer-events:none;opacity:0;transition:opacity .35s ease;
- background:linear-gradient(rgba(255,255,255,.88),rgba(255,255,255,.72) 55%,rgba(255,255,255,.3) 80%,rgba(255,255,255,0));
- -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);-webkit-mask-image:linear-gradient(#000 55%,transparent);mask-image:linear-gradient(#000 55%,transparent)}
-html.dark #fx-top{background:linear-gradient(rgba(18,18,18,.9),rgba(18,18,18,.75) 55%,rgba(18,18,18,.3) 80%,rgba(18,18,18,0))}
-#ficha.sc #fx-top{opacity:1}
+#fx-top{position:absolute;left:0;right:0;top:0;z-index:35;height:calc(96px + env(safe-area-inset-top));pointer-events:none;visibility:hidden;opacity:0;transition:opacity .35s ease,visibility 0s .35s}
+#ficha.sc #fx-top{opacity:1;visibility:visible;transition:opacity .35s ease}
 #ficha.sc .rb{background:rgba(127,127,127,.18);color:var(--tx);box-shadow:inset 0 0 0 .5px rgba(127,127,127,.25)}
-/* photo: pull-down zoom */
-.fx-f{overflow:visible}.fx-f img{transform-origin:center bottom;will-change:transform}
-.fx-f{clip-path:inset(-200px 0 0 0 round 0 0 22px 22px)}
 /* compact key info: one card, icon + value */
 .facts{gap:0;background:var(--soft);border-radius:18px;padding:4px 16px}
 .fa{gap:12px;padding:12px 0;align-items:center}
@@ -587,7 +581,7 @@ if(ios&&!app&&+v>=26&&!/CriOS|FxiOS|EdgiOS/.test(ua))document.documentElement.cl
 </div></header>
 <main><div id="lista"></div><div id="mapa" hidden></div></main>
 <nav class="bn" aria-label="Main"><div class="in" id="nav"></div></nav>
-<div id="ficha" aria-hidden="true"><div id="fx-top"></div><div id="fx-sc"><div id="fx"></div></div><div id="fbar"></div></div>
+<div id="ficha" aria-hidden="true"><div id="fx-top"><div class="vid" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><b class="tinte"></b></div></div><div id="fx-sc"><div id="fx"></div></div><div id="fbar"></div></div>
 <div id="velo"></div>
 <div id="sheet"><div class="asa-z"><div class="asa"></div></div><div id="sheet-c"></div><div class="sheet-f"><button class="lnk" data-borrar="1" id="borrarT"></button><button class="aplica" data-aplicar="1" id="verN"></button></div></div>
 <div id="full"><div class="full-top"><span id="full-t"></span><button data-cerrar="1" id="full-x" aria-label="Close map"></button></div><div id="full-map"></div><a id="full-dir" target="_blank" rel="noopener"></a></div>
@@ -1261,10 +1255,9 @@ pintar();cargar();
 document.getElementById('tema').addEventListener('click',e=>{e.stopPropagation();const go=()=>{const d=document.documentElement.classList.toggle('dark');try{localStorage.setItem('tema',d?'dark':'light')}catch(_){}pon()};document.startViewTransition?document.startViewTransition(go):go()})})();
 </script>
 <script>
-// Plan page: buttons stay on top; a soft blur appears behind them once past the photo; pulling down at the top zooms the photo
+// Plan page: buttons stay on top; the home header's soft blur appears behind them once past the photo
 (function(){var sc=document.getElementById('fx-sc'),fi=document.getElementById('ficha');
  sc.addEventListener('scroll',function(){var f=document.querySelector('#fx .fx-f'),h=f?f.offsetHeight:240,y=sc.scrollTop;
-  fi.classList.toggle('sc',y>h-70);
-  if(f){var im=f.querySelector('img');if(im){if(y<0){im.style.transform='translateY('+y+'px) scale('+(1+(-y)/h*1.6)+')'}else if(im.style.transform)im.style.transform=''}}},{passive:true});
+  fi.classList.toggle('sc',y>h-70);},{passive:true});
 })();
 </script></body></html>
