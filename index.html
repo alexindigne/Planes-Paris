@@ -632,7 +632,7 @@ nav.bn.compacta .nfc{min-width:8px;height:8px;padding:0;font-size:0;top:-1px;rig
 .pin.sel{width:46px;height:46px;border:3px solid #fff;border-radius:50%;background:var(--c);box-shadow:0 6px 16px rgba(0,0,0,.35);overflow:hidden;animation:pinin .3s cubic-bezier(.34,1.4,.64,1)}
 .pin.sel img{width:100%;height:100%;object-fit:cover;display:block}
 @keyframes pinin{from{transform:scale(.4)}to{transform:none}}
-#mapa-w .leaflet-control-attribution{font-size:9px;opacity:.6;margin-bottom:96px!important}
+#mapa-w .leaflet-control-attribution{display:none}
 /* ===== SAVED PAGE v2 ===== */
 .sph{align-items:flex-start}
 .ph .shr{margin-left:auto;height:36px;padding:0 14px;font-size:13px;gap:6px}
@@ -653,6 +653,13 @@ nav.bn.compacta .nfc{min-width:8px;height:8px;padding:0;font-size:0;top:-1px;rig
 .dark .mc.on{background:#2b2b2b;border-color:rgba(255,255,255,.26);box-shadow:0 10px 28px rgba(0,0,0,.55)}
 .mc.on{box-shadow:0 6px 20px rgba(0,0,0,.14)}
 .mc{transition:background-color .3s ease,border-color .3s ease}
+
+/* Filters chip: icon + number when filters are on */
+.chip.fc{padding:0 12px;gap:6px}
+/* map credits behind a small (i) */
+.minfo{position:absolute;top:54px;right:12px;z-index:510;width:24px;height:24px;border-radius:50%;border:.5px solid rgba(255,255,255,.14);background:rgba(30,30,30,.85);color:#bbb;font:700 12px/1 Georgia,serif;font-style:italic;display:flex;align-items:center;justify-content:center;padding:0}
+.mcred{position:absolute;top:84px;right:12px;left:60px;z-index:510;padding:8px 10px;border-radius:12px;background:rgba(30,30,30,.95);border:.5px solid rgba(255,255,255,.1);color:#aaa;font-size:11px;line-height:1.45}
+.mcred a{color:#ddd}
 </style></head><body>
 <header id="hdr"><div class="vid" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><b class="tinte"></b></div><div class="hin">
  <div class="logo"><b>planin<span>paris</span></b></div>
@@ -660,7 +667,7 @@ nav.bn.compacta .nfc{min-width:8px;height:8px;padding:0;font-size:0;top:-1px;rig
  <div class="row" id="rapidos"></div>
  <div class="row" id="pills"></div>
 </div></header>
-<main><div id="lista"></div><div id="mapa-w" hidden><div id="mapa"></div><div class="mtop" id="mtop"></div><div class="mcards" id="mcards"></div></div></main>
+<main><div id="lista"></div><div id="mapa-w" hidden><div id="mapa"></div><div class="mtop" id="mtop"></div><button class="minfo" data-minfo="1" aria-label="Map credits">i</button><div class="mcred" id="mcred" hidden>© <a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a> · © <a href="https://www.openmaptiles.org/" target="_blank" rel="noopener">OpenMapTiles</a> · Data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors · <a href="https://leafletjs.com" target="_blank" rel="noopener">Leaflet</a></div><div class="mcards" id="mcards"></div></div></main>
 <nav class="bn" aria-label="Main"><span class="nbg" aria-hidden="true"></span><div class="in" id="nav"></div></nav>
 <div id="ficha" aria-hidden="true"><div id="fx-top"><div class="vid" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><b class="tinte"></b></div></div><div id="fx-sc"><div id="fx"></div></div><div id="fbar"></div></div>
 <div id="velo"></div>
@@ -1000,7 +1007,7 @@ function pintarCabecera(){
  const nf=numFiltros();
  setRapidos(`<button class="chip lupa" data-lupa="1" aria-label="Search">${I('search',18)}</button><button class="chip${igual(st.dias,conj('hoy'))?' on':''}" data-rap="hoy">${S.hoy}</button>
  <button class="chip${igual(st.dias,conj('finde'))?' on':''}" data-rap="finde">${S.finde}</button>
- <button class="chip${nf?' on':''}" data-abrirf="1">${I('sliders',16)}${S.filtros}${nf?`<span class="n">${nf}</span>`:''}</button>`);
+ <button class="chip${nf?' on fc':''}" data-abrirf="1" aria-label="${S.filtros}${nf?' ('+nf+')':''}">${I('sliders',16)}${nf?`<span class="n">${nf}</span>`:S.filtros}</button>`);
  const pills=[];
  if(st.dias.size&&!igual(st.dias,conj('hoy'))&&!igual(st.dias,conj('finde')))pills.push(`<button class="pill" data-qdias="1">${I('cal',13)}${st.dias.size===1?fd([...st.dias][0]):st.dias.size+' '+S.dias}${I('x',12)}</button>`);
  if(st.gratis)pills.push(`<button class="pill" data-qgratis="1">${S.gratis}${I('x',12)}</button>`);
@@ -1265,6 +1272,7 @@ document.addEventListener('click',ev=>{
  else if(ds.lupa){abrirBusca()}
  else if(ds.qx){cerrarBusca()}
  else if(ds.abrirf)abrirSheet();
+ else if(ds.minfo){const c=$('mcred');c.hidden=!c.hidden}
  else if(ds.sharelist)compartirLista();
  else if(ds.limpiar){const vivos=new Set(st.datos.map(p=>p.id));[...favs].forEach(id=>{if(!vivos.has(id))favs.delete(id)});guardar('favs',[...favs]);document.querySelectorAll('.nfc').forEach(x=>{x.textContent=favs.size;x.hidden=!favs.size});pintarLista()}
  else if(ds.guardartodo){st.lista.forEach(id=>favs.add(id));guardar('favs',[...favs]);document.querySelectorAll('.nfc').forEach(x=>{x.textContent=favs.size;x.hidden=!favs.size});pintarLista()}
