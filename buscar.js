@@ -194,11 +194,43 @@ async function geoUna(q) {
   }
   return null;
 }
-// Try the full address, then only the street part (without the venue name)
+// Venue names (e.g. "Ground Control", "Musée d'Orsay") are found on OpenStreetMap via Photon
+async function geoLugar(q) {
+  try {
+    const r = await fetch('https://photon.komoot.io/api/?' + new URLSearchParams({ q, lat: '48.8566', lon: '2.3522', limit: '5', lang: 'fr' }), { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(8000) });
+    if (!r.ok) return null;
+    for (const f of (await r.json()).features || []) {
+      const pr = f.properties || {}, cp = String(pr.postcode || '');
+      if (/^75\d{3}$/.test(cp) || (pr.city || '').toLowerCase() === 'paris') return { lon: f.geometry.coordinates[0], lat: f.geometry.coordinates[1], cp, fuente: 'osm' };
+    }
+  } catch (_) {}
+  return null;
+}
+// Try: full address → street part → venue name on the map → venue name + Paris
 async function geocodificar(dir) {
   const g = await geoUna(dir); if (g) return g;
   const i = dir.search(/\d/);
-  return i > 0 ? await geoUna(dir.slice(i)) : null;
+  if (i > 0) { const g2 = await geoUna(dir.slice(i)); if (g2) return g2; }
+  const sitio = dir.split(/[,–—-]/)[0].trim();
+  return (await geoLugar(dir)) || (sitio && sitio !== dir ? await geoLugar(sitio + ' Paris') : null);
+}
+// The event page often says exactly where it is in its hidden data (schema.org): use it first
+function lugarDePagina(html) {
+  for (const m of String(html).matchAll(/<script[^>]+application\/ld\+json[^>]*>([\s\S]*?)<\/script>/gi)) {
+    let data; try { data = JSON.parse(m[1].trim()); } catch (_) { continue; }
+    const todos = [].concat(data, data['@graph'] || []).flat();
+    for (const o of todos) {
+      const loc = o && (Array.isArray(o.location) ? o.location[0] : o.location);
+      if (!loc || typeof loc !== 'object') continue;
+      const a = loc.address || {}, geo = loc.geo || {};
+      const calle = typeof a === 'string' ? a : [a.streetAddress, a.postalCode, a.addressLocality].filter(Boolean).join(', ');
+      const lugar = limpia([loc.name, calle].filter(Boolean).join(', '));
+      const lat = parseFloat(geo.latitude), lon = parseFloat(geo.longitude);
+      const cp = String((typeof a === 'object' && a.postalCode) || (calle.match(/\b75\d{3}\b/) || [''])[0]);
+      if (lugar || (lat && lon)) return { lugar, cp, geo: lat && lon && Math.abs(lat - 48.86) < 0.2 && Math.abs(lon - 2.35) < 0.3 ? { lat, lon, cp, fuente: 'pagina' } : null };
+    }
+  }
+  return null;
 }
 async function enParalelo(items, n, fn) {
   let i = 0;
@@ -577,7 +609,7 @@ async function leerPlan(c) {
   const d = leerJSON(textoDe(j), '{', '}');
   const tickets = enlacesOficiales(pag.html, pag.url);
   const oficial = d.web_oficial ? [d.web_oficial, ...tickets] : [...tickets, ...await elegirEnlaces(c.nombre, pag.html, pag.url)];
-  return { d, url: pag.url, html: pag.html, oficial };
+  return { d, url: pag.url, html: pag.html, oficial, sitio: lugarDePagina(pag.html) };
 }
 
 // ===== 3b. RE-SCORE PLANS ALREADY IN THE APP (once each) + photo for the ones without =====
@@ -649,12 +681,17 @@ async function liberarPendientes() {
   catch (_) { return 0; }
   let n = 0;
   for (const p of planes) {
+    let extra = {};
+    if (String(p.motivo).includes('address not verified') && p.lugar && !CP_TXT.test(p.lugar) && !enParisTxt(p.lugar)) {
+      const g = await geocodificar(p.lugar);
+      if (g && (!g.cp || PARIS.test(g.cp))) { extra = { lat: g.lat, lon: g.lon }; p.lugar = p.lugar + ', ' + (g.cp ? g.cp + ' ' : '') + 'Paris'; extra.lugar = p.lugar.slice(0, 200); }
+    }
     const quedan = String(p.motivo).split(', ').filter(x => x
       && !(x === 'dates unclear' && p.fecha_inicio && p.fecha_fin)
       && !(x === 'address not verified' && (CP_TXT.test(p.lugar || '') || enParisTxt(p.lugar)))
       && !(x === 'no photo' && (p.foto || !fotoObligatoria(p))));
     if (quedan.join(', ') === p.motivo) continue;
-    try { await sb(`planes?id=eq.${p.id}`, { method: 'PATCH', body: JSON.stringify({ motivo: quedan.join(', ') || null, estado: quedan.length ? 'pendiente' : 'aprobado' }) }); n++; } catch (_) {}
+    try { await sb(`planes?id=eq.${p.id}`, { method: 'PATCH', body: JSON.stringify({ ...extra, motivo: quedan.join(', ') || null, estado: quedan.length ? 'pendiente' : 'aprobado' }) }); n++; } catch (_) {}
   }
   return n;
 }
@@ -792,9 +829,11 @@ async function main() {
     if (precioNum !== null && precioNum > PRECIO_MAX && !imp) return rechazar('precio');
     const fechas = diasReales(ini, fin, d);
     if (fechas && !fechas.length) return rechazar('fecha');
-    const lugar = limpia(d.lugar).slice(0, 200);
-    const geo = lugar ? await geocodificar(lugar) : null;
-    if (geo && !PARIS.test(geo.cp)) { informe.fuera++; desc.push({ fuente_id: id, fecha_fin: fin }); return; }
+    const sp = res.sitio || {};
+    const lugar = limpia(d.lugar || sp.lugar).slice(0, 200);
+    let geo = sp.geo || (lugar ? await geocodificar(lugar) : null);
+    if (!geo && sp.lugar && sp.lugar !== lugar) geo = await geocodificar(sp.lugar);
+    if (geo && geo.cp && !PARIS.test(geo.cp)) { informe.fuera++; desc.push({ fuente_id: id, fecha_fin: fin }); return; }
     const m = [];
     if (d.fechas_seguras === false && !(ini && fin)) m.push('dates unclear'); // with a known start and end, the plan is shown with its range
     if (!geo && !CP_TXT.test(lugar) && !enParisTxt(lugar)) m.push('address not verified'); // a Paris postcode or "Paris" in the address is enough (no map pin)
