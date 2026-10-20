@@ -330,6 +330,39 @@ async function fotosPendientes(todosOD) {
   });
 }
 
+
+// ===== ADDRESSES: official French address database first, then OpenStreetMap for venue names =====
+const PARIS_CP = /^750(0[1-9]|1\d|20)$|^75116$/;
+async function geoUna(q) {
+  for (const base of ['https://data.geopf.fr/geocodage/search', 'https://api-adresse.data.gouv.fr/search/']) {
+    try {
+      const r = await fetch(base + '?' + new URLSearchParams({ q, limit: '1' }), { signal: AbortSignal.timeout(8000) });
+      if (!r.ok) continue;
+      const f = (await r.json()).features?.[0];
+      if (f && (f.properties?.score ?? 1) >= 0.5) return { lon: f.geometry.coordinates[0], lat: f.geometry.coordinates[1], cp: String(f.properties?.postcode || '') };
+      return null;
+    } catch (_) {}
+  }
+  return null;
+}
+async function geoLugar(q) {
+  try {
+    const r = await fetch('https://photon.komoot.io/api/?' + new URLSearchParams({ q, lat: '48.8566', lon: '2.3522', limit: '5', lang: 'fr' }), { headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(8000) });
+    if (!r.ok) return null;
+    for (const f of (await r.json()).features || []) {
+      const pr = f.properties || {}, cp = String(pr.postcode || '');
+      if (/^75\d{3}$/.test(cp) || (pr.city || '').toLowerCase() === 'paris') return { lon: f.geometry.coordinates[0], lat: f.geometry.coordinates[1], cp };
+    }
+  } catch (_) {}
+  return null;
+}
+async function geoEvento(e) {
+  const calle = limpia([e.address_street, e.address_zipcode, e.address_city || 'Paris'].filter(Boolean).join(', '));
+  const sitio = limpia(e.address_name);
+  const g = (e.address_street && await geoUna(calle)) || (sitio && await geoLugar(sitio + ' Paris')) || (sitio && e.address_street && await geoLugar(sitio + ', ' + calle));
+  return g && (!g.cp || PARIS_CP.test(g.cp)) ? g : null;
+}
+
 async function main() {
   await sb('planes?fecha_fin=lt.' + hoy, { method: 'DELETE' });
   await sb('descartados?fecha_fin=lt.' + hoy, { method: 'DELETE' });
@@ -414,7 +447,8 @@ async function main() {
       if (fechas && !fechas.length) ok = false;
       if (!ok) { desc.push({ fuente_id: d.id, fecha_fin: fin }); continue; }
       const finReal = fechas ? fechas[fechas.length - 1] : fin;
-      const lat = e.lat_lon?.lat ?? null, lon = e.lat_lon?.lon ?? null;
+      let lat = e.lat_lon?.lat ?? null, lon = e.lat_lon?.lon ?? null;
+      if (lat == null) { const g = await geoEvento(e); if (g) { lat = g.lat; lon = g.lon; } }
       const m = [];
       if (!seguras && !(ini && fin)) m.push('dates unclear');
       if (lat == null) m.push('address not verified');
