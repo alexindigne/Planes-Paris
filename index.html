@@ -567,6 +567,15 @@ html.ios-barra main{padding-bottom:calc(var(--nav) + 100px + env(safe-area-inset
 .bt{font-size:20px;letter-spacing:-.03em}
 .cred{background:rgba(20,20,20,.45);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border-radius:12px}
 .cta,.dark .cta{border-radius:25px;color:#fff}
+
+/* plan page: blur higher up and softer */
+#fx-top{height:calc(74px + env(safe-area-inset-top))}
+#fx-top .vid i:nth-child(n+4){display:none}
+#fx-top .vid i:nth-child(1){-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);-webkit-mask-image:linear-gradient(#000 0%,rgba(0,0,0,.7) 25%,rgba(0,0,0,.35) 45%,rgba(0,0,0,.1) 62%,transparent 75%);mask-image:linear-gradient(#000 0%,rgba(0,0,0,.7) 25%,rgba(0,0,0,.35) 45%,rgba(0,0,0,.1) 62%,transparent 75%)}
+#fx-top .vid i:nth-child(2){-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);-webkit-mask-image:linear-gradient(#000 0%,#000 30%,rgba(0,0,0,.55) 55%,rgba(0,0,0,.2) 75%,transparent 90%);mask-image:linear-gradient(#000 0%,#000 30%,rgba(0,0,0,.55) 55%,rgba(0,0,0,.2) 75%,transparent 90%)}
+#fx-top .vid i:nth-child(3){-webkit-backdrop-filter:blur(1.5px);backdrop-filter:blur(1.5px);-webkit-mask-image:linear-gradient(#000 0%,#000 45%,rgba(0,0,0,.5) 72%,rgba(0,0,0,.15) 90%,transparent 100%);mask-image:linear-gradient(#000 0%,#000 45%,rgba(0,0,0,.5) 72%,rgba(0,0,0,.15) 90%,transparent 100%)}
+#fx-top .vid .tinte{background:linear-gradient(rgba(255,255,255,.84) 0%,rgba(255,255,255,.74) 30%,rgba(255,255,255,.56) 50%,rgba(255,255,255,.36) 66%,rgba(255,255,255,.18) 80%,rgba(255,255,255,.07) 91%,rgba(255,255,255,0) 100%)}
+html.dark #fx-top .vid .tinte{background:linear-gradient(rgba(18,18,18,.84) 0%,rgba(18,18,18,.74) 30%,rgba(18,18,18,.56) 50%,rgba(18,18,18,.36) 66%,rgba(18,18,18,.18) 80%,rgba(18,18,18,.07) 91%,rgba(18,18,18,0) 100%)}
 </style><script>
 // iOS 26 Safari draws its floating toolbar on top of the bottom of the page: lift our bar above it (only in the browser, not when added to the Home Screen)
 (function(){var ua=navigator.userAgent,ios=/iP(hone|od|ad)/.test(ua)||(/Macintosh/.test(ua)&&navigator.maxTouchPoints>1),v=(ua.match(/Version\/(\d+)/)||[])[1],app=navigator.standalone||matchMedia('(display-mode: standalone)').matches;
