@@ -1252,6 +1252,7 @@ function toggleFav(id,b){
  if(st.fav&&fichaId==null)pintarLista();
 }
 function irANav(k){
+ if(k==='fav'){st.dias=new Set();st.cats=new Set();st.gratis=false;st.sel=false;if(st.q){st.q='';$('q').value='';$('qx').hidden=true;const h=document.querySelector('.hin');if(h)h.classList.remove('busca','cierra')}}
  if(k==='mapa'){st.vista='mapa';st.fav=false}
  else{const yaEn=st.vista==='lista'&&st.fav===(k==='fav')&&!st.tema;st.vista='lista';st.fav=k==='fav';if(yaEn){scrollTo({top:0,behavior:'smooth'});return}}
  if(st.tema){st.tema=null;history.replaceState(null,'',location.pathname)}
