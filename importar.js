@@ -22,7 +22,13 @@ const hoy = iso(new Date());
 const limite = iso(new Date(Date.now() + DIAS_ANTELACION * 864e5));
 const limpia = s => String(s ?? '').replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
 const norm = s => limpia(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
-const esImp = s => IMPRESCINDIBLES.some(k => norm(s).includes(norm(k)));
+// Must-do = the big event ITSELF (e.g. "Art Basel Paris 2026"), not things that are part of it
+// ("Art Basel: open-air sculptures on Avenue Winston Churchill"): those can be good plans, but not must-dos.
+const RELLENO_IMP = new Set(['paris', 'edition', 'annual', 'the', 'de', 'la', 'le', 'les', 'du', 'des', 'of', 'and', 'et', 'en', 'a', 'au', 'aux', 'in', 'a', 'l', 'd']);
+const restoImp = (s, k) => norm(s).replace(norm(k), ' ').split(' ').filter(w => w.length > 1 && !RELLENO_IMP.has(w) && !/^\d+$/.test(w) && !/^(ss|fw|aw|pe|ah)\d+$/.test(w));
+const esImp = s => IMPRESCINDIBLES.some(k => norm(s).includes(norm(k)) && restoImp(s, k).length <= 1);
+const parteDe = s => IMPRESCINDIBLES.some(k => norm(s).includes(norm(k))) && !esImp(s);
+const MUST_RULE = ` Only the main event ITSELF is a must-do: things that are PART of a big event or happen around it (one artwork or installation of Art Basel's public programme, one exhibition or party during Art Basel week, a single show during Fashion Week, one Nuit Blanche installation, an off/satellite event) are NOT must-dos — "imprescindible": false (they can still score high). Single exhibitions in museums or galleries are not must-dos either, however good. Expect only a handful of must-dos in the whole city at any time.`;
 const CATEGORIAS = ['música', 'expo', 'pop-up', 'mercado', 'festival', 'cine', 'aire libre', 'otro'];
 const IDEAL = ['Solo', 'Date', 'Friends', 'Groups'];
 const dias = (a, b) => (new Date(b) - new Date(a)) / 864e5;
@@ -94,7 +100,7 @@ WHAT GETS IN: dated plans many people would enjoy: temporary exhibitions, art fa
 OUR LINE (what we love most): brand pop-ups and activations, launches, temporary stores and cafés, showrooms and concept-store events; fashion, Fashion Week, streetwear, sneakers and street culture; art fairs, openings and vernissages; art, design, photography and temporary installations; DJ sets and parties (electronic, house, disco, hip-hop, R&B, alternative), listening sessions, vinyl, rooftops, afterworks and apéros with good music; vintage; food & drink with a concept; small or underground events with a great vibe and strong visual appeal.
 FAMOUS PLACES: skip the ordinary visit of tourist landmarks and permanent collections (Eiffel Tower, Louvre, Arc de Triomphe, Sacré-Cœur…). But a special dated event AT a famous place — a party or DJ set at the Eiffel Tower, a concert in a monument, a late opening, a light show, a one-off event in a palace or a museum — is NOT a tourist visit: it is welcome and often scores high.
 AVOID: regular restaurants and bars; standard tourist activities; generic lists; workshops, courses, talks, kids-only activities, admin services, regular sports, and anything that is mainly an advert.
-MUST-DOS: "imprescindible": true only for Paris's big events that everyone goes to and the city waits for every year, like ${IMPRESCINDIBLES.join(', ')}, or events of that scale.`;
+MUST-DOS: "imprescindible": true only for Paris's big events that everyone goes to and the city waits for every year, like ${IMPRESCINDIBLES.join(', ')}, or events of that scale.` + MUST_RULE;
 
 const SCORING = `SCORING: rate 5 criteria with 0, 1 or 2 each, using only facts from the source. Return them as "criterios": {"original":0-2,"ambiente":0-2,"encaje":0-2,"oportunidad":0-2,"calidad":0-2}.
 - original: is it different, something you wouldn't stumble upon by chance? 2 = an unusual idea, place or format; 1 = a good version of a familiar thing; 0 = generic or routine.
@@ -367,7 +373,7 @@ async function main() {
   await sb('planes?fecha_fin=lt.' + hoy, { method: 'DELETE' });
   await sb('descartados?fecha_fin=lt.' + hoy, { method: 'DELETE' });
   await cargarEjemplos();
-  try { (await (await sb('planes?select=foto&foto=not.is.null&limit=5000')).json()).forEach(p => usadas.add(p.foto)); } catch (_) {}
+  try { (await (await sb('planes?select=foto,foto_original&foto=not.is.null&limit=5000')).json()).forEach(p => { usadas.add(p.foto); if (p.foto_original) usadas.add(p.foto_original); }); } catch (_) {}
 
   const ya = new Set([...(await ids('planes')), ...(await ids('descartados'))]);
 
@@ -426,7 +432,7 @@ async function main() {
       const fin = e.date_end ? e.date_end.slice(0, 10) : null;
       const gratis = e.price_type === 'gratuit';
       const precio = gratis ? 'Free' : limpia(d.precio).slice(0, 30);
-      const imp = d.imprescindible === true || esImp(e.title) || esImp(d.nombre);
+      const imp = !parteDe(d.nombre || e.title) && !parteDe(e.title) && (d.imprescindible === true || esImp(e.title) || esImp(d.nombre));
       const nota = calcNota(d.criterios) ?? (Number(d.nota) || 0);
       let ok = (d.keep === true || imp) && !!d.nombre && (nota >= NOTA_MIN || imp);
       if (ok && !gratis) {
