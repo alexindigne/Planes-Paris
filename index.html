@@ -800,6 +800,8 @@ const H={apikey:KEY,Authorization:'Bearer '+KEY};
 const api=(path,opt={})=>fetch(URL_+'/rest/v1/'+path,{...opt,headers:{...H,...(opt.headers||{})}});
 const tx=(p,k)=>(p.i18n&&p.i18n[LANG]&&p.i18n[LANG][k])||p[k];
 const lista=a=>Array.isArray(a)?a.filter(Boolean):[];
+const slugTx=t=>String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,60).replace(/-+$/,'');
+const pslug=p=>{const sl=slugTx(tx(p,'nombre'));return p.id+(sl?'-'+sl:'')};
 const esGratis=p=>/^(free|gratis|gratuit)/i.test(p.precio||'');
 let PICK=new Set();
 const esSel=p=>PICK.has(p.id);
@@ -922,18 +924,18 @@ function tarjetaFila(p,big,extra=''){
  const txt=big
   ?`<span>${e(zona(p))}</span>${fe?`<span>${e(fe)}</span>`:''}<span>${precioHTML(p)}${rateHTML(p)}</span>`
   :`<span>${e(zona(p))}</span><span>${precioHTML(p)}${fe?' · '+e(fe):''}</span>`;
- return `<div class="rc${big?' big':''}"><a class="rl" href="?plan=${p.id}" data-plan="${p.id}">${foto(p,big?56:40,true,extra)}<div class="rt"><b>${nom}</b>${txt}</div></a>${heart(p)}</div>`;
+ return `<div class="rc${big?' big':''}"><a class="rl" href="?plan=${pslug(p)}" data-plan="${p.id}">${foto(p,big?56:40,true,extra)}<div class="rt"><b>${nom}</b>${txt}</div></a>${heart(p)}</div>`;
 }
 // Compact row (thumbnail + text) for the list layout
 function tarjetaRow(p,k){
  const fe=fechas(p),ult=ultima(p),ini=inicio(p);
  const kk=k==='ultima'&&ult?(ult===HOY?S.ultimo:S.acaba+fd(ult)):k==='pronto'&&ini?S.abre+fd(ini):k==='saved'?(proxima(p)===HOY?S.hoy:fd(proxima(p))):'';
- return `<div class="li"><a class="rl" href="?plan=${p.id}" data-plan="${p.id}">${foto(p,30,false)}<div class="rt">${kk?`<span class="kk">${e(kk)}</span>`:''}<b>${e(tx(p,'nombre'))}</b><span>${e(zona(p))}</span><span>${precioHTML(p)}${fe&&!kk?' · '+e(fe):''}${rateHTML(p)}</span></div></a>${heart(p)}</div>`;
+ return `<div class="li"><a class="rl" href="?plan=${pslug(p)}" data-plan="${p.id}">${foto(p,30,false)}<div class="rt">${kk?`<span class="kk">${e(kk)}</span>`:''}<b>${e(tx(p,'nombre'))}</b><span>${e(zona(p))}</span><span>${precioHTML(p)}${fe&&!kk?' · '+e(fe):''}${rateHTML(p)}</span></div></a>${heart(p)}</div>`;
 }
 // Must-dos: big landscape photo with the text inside
 function tarjetaHero(p){
  const fe=fechas(p);
- return `<div class="rc big mz"><a class="mzb" href="?plan=${p.id}" data-plan="${p.id}">${foto(p,52)}<div class="ov"><b>${e(tx(p,'nombre'))}</b><span>${e([zona(p),fe,precioTx(p)].filter(Boolean).join(' · '))}</span></div></a>${heart(p)}</div>`;
+ return `<div class="rc big mz"><a class="mzb" href="?plan=${pslug(p)}" data-plan="${p.id}">${foto(p,52)}<div class="ov"><b>${e(tx(p,'nombre'))}</b><span>${e([zona(p),fe,precioTx(p)].filter(Boolean).join(' · '))}</span></div></a>${heart(p)}</div>`;
 }
 // Each theme has its own look, so the home page doesn't feel repetitive
 // Layouts: hero, carr, wide, top (big numbers), rank (small numbers), mosaico (1 big + 2 small), lista, grid
@@ -948,7 +950,7 @@ function fila(k,arr,total,lay){
  if(lay==='top')body=`<div class="top">${arr.map((p,i)=>`<div class="tk"><span class="num" aria-hidden="true">${i+1}</span>${tarjetaFila(p,false)}</div>`).join('')}</div>${boton}`;
  else if(lay==='rank')body=`<div class="carr">${arr.map((p,i)=>tarjetaFila(p,false,`<span class="rk" aria-label="Number ${i+1}">${i+1}</span>`)).join('')}${tile(false)}</div>`;
  else if(lay==='mosaico'){const [a1,...resto]=arr,fe=fechas(a1);
-  body=`<div class="mos"><div class="mz"><a class="mzb" href="?plan=${a1.id}" data-plan="${a1.id}">${foto(a1,64)}<div class="ov"><b>${e(tx(a1,'nombre'))}</b><span>${e([catTx(a1),zona(a1),fe,precioTx(a1)].filter(Boolean).join(' · '))}</span></div></a>${heart(a1)}</div>${resto.length?`<div class="gr">${resto.map(p=>tarjetaFila(p,false)).join('')}</div>`:''}</div>${boton}`;}
+  body=`<div class="mos"><div class="mz"><a class="mzb" href="?plan=${pslug(a1)}" data-plan="${a1.id}">${foto(a1,64)}<div class="ov"><b>${e(tx(a1,'nombre'))}</b><span>${e([catTx(a1),zona(a1),fe,precioTx(a1)].filter(Boolean).join(' · '))}</span></div></a>${heart(a1)}</div>${resto.length?`<div class="gr">${resto.map(p=>tarjetaFila(p,false)).join('')}</div>`:''}</div>${boton}`;}
  else if(lay==='dias')body=diasHTML(arr);
  else if(lay==='lista')body=`<div class="lis">${arr.map(p=>tarjetaRow(p,k)).join('')}</div>${boton}`;
  else if(lay==='grid')body=`<div class="gr">${arr.map(p=>tarjetaFila(p,false)).join('')}</div>${boton}`;
@@ -1103,7 +1105,7 @@ function mapaChips(n){
  return `<span class="mcount">${n} ${n===1?S.plan:S.planes}</span>`+chip(st.gratis,'data-qgratis="1"',S.gratis)
   +Object.keys(CAT).filter(k=>k!=='otro').map(k=>chip(st.cats.has(k),`data-cat="${k}"`,S.cats[k],CAT[k])).join('');
 }
-function cartaMapa(p){const fe=fechas(p);return `<a class="mc" href="?plan=${p.id}" data-plan="${p.id}" data-mc="${p.id}">${foto(p,26,false)}<span class="mct"><b>${e(tx(p,'nombre'))}</b><small>${e([fe,precioTx(p)].filter(Boolean).join(' · '))}</small><small>${e(zona(p))}</small></span></a>`}
+function cartaMapa(p){const fe=fechas(p);return `<a class="mc" href="?plan=${pslug(p)}" data-plan="${p.id}" data-mc="${p.id}">${foto(p,26,false)}<span class="mct"><b>${e(tx(p,'nombre'))}</b><small>${e([fe,precioTx(p)].filter(Boolean).join(' · '))}</small><small>${e(zona(p))}</small></span></a>`}
 function marcar(id,desdePin){
  const p=mLista.find(x=>x.id===id);if(!p||!mapa)return;
  if(mSel!=null&&mks[mSel]&&mSel!==id){const q=mLista.find(x=>x.id===mSel);if(q){mks[mSel].setIcon(pinDe(q));mks[mSel].setZIndexOffset(0)}}
@@ -1181,6 +1183,27 @@ function barHTML(p){
  const url=urlOk(p),fe=fechas(p);
  return `<div class="in"><div><b class="${esGratis(p)?'g':''}">${e(precioTx(p))}</b>${fe?`<small>${e(fe)}</small>`:''}</div>${url?`<a class="cta" href="${e(url)}" target="_blank" rel="noopener">${S.info}${I('ext',16)}</a>`:`<button class="cta" data-share="${p.id}">${I('share',16)}${S.compartir}</button>`}</div>`;
 }
+
+// ===== SEO: per-plan meta (title, description, canonical, share tags, Event data) =====
+const SEO0={};
+function metaEl(sel){return document.head.querySelector(sel)}
+function setMeta(sel,v){const m=metaEl(sel);if(!m)return;const at=m.tagName==='LINK'?'href':'content';if(!(sel in SEO0))SEO0[sel]=m.getAttribute(at);m.setAttribute(at,v)}
+function seoPlan(p){
+ const url='https://planinparis.com/?plan='+pslug(p),nom=tx(p,'nombre');
+ const d=String(tx(p,'subtitulo')||tx(p,'descripcion')||'').replace(/\s+/g,' ').trim();
+ const desc=[d.length>150?d.slice(0,147).replace(/\s\S*$/,'')+'…':d,[fechas(p),zona(p),precioTx(p)].filter(Boolean).join(' · ')].filter(Boolean).join(' — ');
+ setMeta('meta[name="description"]',desc);setMeta('link[rel="canonical"]',url);
+ setMeta('meta[property="og:title"]',nom+' · '+NOMBRE);setMeta('meta[property="og:description"]',desc);setMeta('meta[property="og:url"]',url);
+ if(fotoOk(p)){setMeta('meta[property="og:image"]',fotoOk(p));setMeta('meta[name="twitter:image"]',fotoOk(p))}
+ const ev={'@context':'https://schema.org','@type':'Event',name:nom,url,description:d||undefined,image:fotoOk(p)?[fotoOk(p)]:undefined,
+  startDate:proxima(p)||undefined,endDate:ultima(p)||p.fecha_inicio||undefined,eventStatus:'https://schema.org/EventScheduled',eventAttendanceMode:'https://schema.org/OfflineEventAttendanceMode',
+  location:p.lugar?{'@type':'Place',name:String(p.lugar).split(',')[0],address:{'@type':'PostalAddress',streetAddress:p.lugar,addressLocality:'Paris',addressCountry:'FR'},geo:p.lat!=null?{'@type':'GeoCoordinates',latitude:p.lat,longitude:p.lon}:undefined}:undefined,
+  organizer:p.organizador?{'@type':'Organization',name:p.organizador}:undefined,
+  isAccessibleForFree:esGratis(p)||undefined};
+ let j=document.getElementById('ld-plan');if(!j){j=document.createElement('script');j.type='application/ld+json';j.id='ld-plan';document.head.appendChild(j)}
+ j.textContent=JSON.stringify(ev);
+}
+function seoReset(){for(const sel in SEO0){const m=metaEl(sel);if(m)m.setAttribute(m.tagName==='LINK'?'href':'content',SEO0[sel])}const j=document.getElementById('ld-plan');if(j)j.remove()}
 function abrirFicha(id){
  const p=st.datos.find(x=>x.id===id);if(!p)return;
  if(fxMap){fxMap.remove();fxMap=null}
@@ -1189,7 +1212,7 @@ function abrirFicha(id){
  $('fx-sc').scrollTop=0;
  $('ficha').classList.add('on');$('ficha').setAttribute('aria-hidden','false');
  document.body.style.overflow='hidden';
- document.title=tx(p,'nombre')+' · '+NOMBRE;
+ document.title=tx(p,'nombre')+' · '+NOMBRE;seoPlan(p);
 
  setTimeout(montarFxMap,420);
 }
@@ -1197,7 +1220,7 @@ function cerrarFicha(){
  if(fichaId==null)return;
  fichaId=null;$('ficha').classList.remove('on');$('ficha').setAttribute('aria-hidden','true');
  if(!sheetOn)document.body.style.overflow='';
- document.title=NOMBRE;
+ document.title=NOMBRE;seoReset();
  const m=fxMap;fxMap=null;if(m)setTimeout(()=>m.remove(),450);
 }
 async function cargarComs(id){
@@ -1215,12 +1238,13 @@ function ruta(){
  const dd=u.get('dia'),tdia=tema==='finde'&&/^\d{4}-\d\d-\d\d$/.test(dd||'')?dd:null;
  const li=(u.get('lista')||'').split(',').map(Number).filter(Boolean),lista=li.length?li:null;
  if(tema!==st.tema||tdia!==st.tdia||String(lista)!==String(st.lista)){st.tema=tema;st.tdia=tdia;st.lista=lista;pintar();scrollTo(0,0)}
- const pid=+u.get('plan')||null;
- if(pid&&st.cargado&&st.datos.some(p=>p.id===pid)){if(fichaId!==pid)abrirFicha(pid)}
+ const pid=parseInt(u.get('plan'),10)||null;
+ if(pid&&st.cargado&&st.datos.some(p=>p.id===pid)){if(fichaId!==pid)abrirFicha(pid);const ok=pslug(st.datos.find(p=>p.id===pid));if(u.get('plan')!==ok){u.set('plan',ok);history.replaceState(history.state,'','?'+u.toString())}}
  else if(st.cargado||!pid)cerrarFicha();
 }
 function ir(cambios){
  const u=new URLSearchParams(location.search);
+ if(typeof cambios.plan==='number'){const p=st.datos.find(x=>x.id===cambios.plan);if(p)cambios.plan=pslug(p)}
  for(const k in cambios)cambios[k]==null?u.delete(k):u.set(k,cambios[k]);
  const q=u.toString();
  history.pushState({app:((history.state&&history.state.app)||0)+1},'',q?'?'+q:location.pathname);
@@ -1258,7 +1282,7 @@ async function enviarVoto(id){
 }
 async function compartir(id){
  const p=st.datos.find(x=>x.id===id);if(!p)return;
- const link=location.origin+location.pathname+'?plan='+id,tit=tx(p,'nombre');
+ const link=location.origin+location.pathname+'?plan='+pslug(p),tit=tx(p,'nombre');
  if(navigator.share){try{await navigator.share({title:tit,text:S.compartirTxt+': '+tit,url:link})}catch(_){}return}
  window.open('https://wa.me/?text='+encodeURIComponent(S.compartirTxt+': '+tit+' '+link),'_blank');
 }
