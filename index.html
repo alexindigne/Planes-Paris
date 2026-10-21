@@ -700,6 +700,11 @@ nav.bn.compacta .nfc{min-width:8px;height:8px;padding:0;font-size:0;top:-1px;rig
 .leaflet-bar,.leaflet-touch .leaflet-bar{border:.5px solid rgba(255,255,255,.12)!important;border-radius:12px;overflow:hidden;box-shadow:0 4px 14px rgba(0,0,0,.4)}
 .leaflet-bar a,.leaflet-bar a:hover{background:#232323!important;color:#fff!important;border-bottom-color:#333!important}
 .leaflet-bar a.leaflet-disabled{color:#555!important}
+
+/* ===== Fixed header: stays put while the page jumps or swaps (no flicker on iOS) ===== */
+html header#hdr,html header#hdr.sc{position:fixed;top:0;left:0;right:0}
+body{padding-top:var(--hdrsp,132px)}
+html{scroll-padding-top:var(--hdrsp,132px)}
 </style></head><body>
 <header id="hdr"><div class="vid" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><b class="tinte"></b></div><div class="hin">
  <div class="logo"><b>planin<span>paris</span></b></div>
@@ -1043,7 +1048,10 @@ document.addEventListener('click',ev=>{const b=ev.target.closest('[data-dtab]');
 new MutationObserver(()=>document.querySelectorAll('.dtabs').forEach(moverInd)).observe(document.body,{childList:true,subtree:true});
 addEventListener('resize',()=>document.querySelectorAll('.dtabs').forEach(moverInd));
 // ===== PAINT =====
-function setHdr(){requestAnimationFrame(()=>document.documentElement.style.setProperty('--hdr',$('hdr').offsetHeight+'px'))}
+function medirHdr(){const h=$('hdr');if(!h)return;const R=document.documentElement.style,alto=h.offsetHeight;
+ R.setProperty('--hdr',alto+'px');R.setProperty('--hdrsp',Math.max(0,alto+(parseFloat(getComputedStyle(h).marginBottom)||0))+'px')}
+function setHdr(){medirHdr();requestAnimationFrame(medirHdr)}
+try{new ResizeObserver(medirHdr).observe($('hdr'))}catch(_){addEventListener('resize',medirHdr)}
 function pintarCabecera(){
  document.title=fichaId==null?NOMBRE:document.title;
  const nf=numFiltros();
