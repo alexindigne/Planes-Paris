@@ -1240,6 +1240,26 @@ async function cargarComs(id){
  }catch(_){}
 }
 
+
+// ===== Hide obvious duplicates (same event imported twice) - keeps the better of the two =====
+function sinRepetidos(arr){
+ const STOP=new Set(['de','la','le','les','des','du','en','et','el','los','las','au','aux','the','of','and','paris','par','con','una','une','pour','para','sur','with','at']);
+ const tk=p=>new Set(sinAc(p.nombre).replace(/[^a-z0-9]+/g,' ').split(' ').filter(w=>w.length>2&&!STOP.has(w)));
+ const cp=s=>(String(s||'').match(/\b75(?:0\d\d|116)\b/)||[null])[0];
+ const fk=u=>String(u||'').split('?')[0].replace(/^https?:\/\/(www\.)?/,'').toLowerCase();
+ const m=(a,b)=>{const r=Math.PI/180,x=(b.lat-a.lat)*r,y=(b.lon-a.lon)*r,h=Math.sin(x/2)**2+Math.cos(a.lat*r)*Math.cos(b.lat*r)*Math.sin(y/2)**2;return 12742000*Math.asin(Math.sqrt(h))};
+ const sol=(a,b)=>(a.fecha_inicio||'0000')<=(b.fecha_fin||b.fecha_inicio||'9999')&&(b.fecha_inicio||'0000')<=(a.fecha_fin||a.fecha_inicio||'9999');
+ const jac=(A,B)=>{let i=0;for(const w of A)if(B.has(w))i++;return i/(A.size+B.size-i)};
+ const mismo=(a,b,ta,tb)=>{if(!ta.size||!tb.size||!sol(a,b))return false;const[pe,gr]=ta.size<=tb.size?[ta,tb]:[tb,ta];
+  const cont=[...pe].every(w=>gr.has(w));if(!((cont&&(pe.size>=2||(pe.size===gr.size&&[...pe][0].length>=6)))||jac(ta,tb)>=.8))return false;
+  if(a.foto&&b.foto&&fk(a.foto)===fk(b.foto))return true;if(a.lat!=null&&b.lat!=null)return m(a,b)<500;const ca=cp(a.lugar),cb=cp(b.lugar);return!ca||!cb||ca===cb};
+ const val=p=>(p.imprescindible?50:0)+(+p.nota||0)*3+(p.foto?4:0)+(p.lat!=null?2:0)+(p.lugar&&!/^\s*paris\b/i.test(p.lugar)?3:0)+(p.horario?1:0)+Math.min(3,String(p.descripcion||'').length/300)+(Array.isArray(p.puntos)&&p.puntos.length?2:0);
+ const T=arr.map(tk),fuera=new Set();
+ for(let i=0;i<arr.length;i++){if(fuera.has(i))continue;for(let j=i+1;j<arr.length;j++){if(fuera.has(j))continue;
+  if(mismo(arr[i],arr[j],T[i],T[j])){if(val(arr[j])>val(arr[i])){fuera.add(i);break}fuera.add(j)}}}
+ return fuera.size?arr.filter((_,i)=>!fuera.has(i)):arr;
+}
+
 // ===== NAVIGATION (?see=row, ?plan=id) =====
 let _yInicio=0,_destY=null;
 try{history.scrollRestoration='manual'}catch(_){}
@@ -1473,7 +1493,7 @@ async function cargar(){
  try{
   const [r1,r2]=await Promise.all([api('planes?select=*&estado=eq.aprobado&or=(fecha_fin.gte.'+HOY+',fecha_fin.is.null)'),Promise.resolve({ok:false})||api('resumen_valoraciones?select=*')]);
   if(!r1.ok)throw 0;
-  st.datos=(await r1.json()).filter(p=>{const f=futuras(p);return !f||f.length});
+  st.datos=sinRepetidos((await r1.json()).filter(p=>{const f=futuras(p);return !f||f.length}));
   if(r2.ok)(await r2.json()).forEach(x=>st.rat[x.plan_id]={media:Number(x.media),total:x.total});
   PICK=new Set(st.datos.filter(p=>(p.nota||0)>=PICK_MIN).sort((a,b)=>(b.nota||0)-(a.nota||0)||(b.imprescindible?1:0)-(a.imprescindible?1:0)||proxima(a).localeCompare(proxima(b))).slice(0,PICKS).map(p=>p.id));
   st.cargado=true;
