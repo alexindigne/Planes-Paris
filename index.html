@@ -1058,7 +1058,8 @@ function pintarCabecera(){
  $('pills').innerHTML=pills.join('');
  $('qx').hidden=!st.q;
  const on=st.vista==='mapa'?'mapa':st.fav?'fav':'exp';
- $('nav').innerHTML=[['exp','compass',S.explorar],['mapa','map',S.mapa],['fav','heart',S.guardados]].map(([k,ic,l])=>`<button data-nav="${k}" class="${on===k?'on':''}"${on===k?' aria-current="page"':''}><span class="nico">${I(ic,22)}${k==='fav'?`<i class="nfc"${favs.size?'':' hidden'}>${favs.size}</i>`:''}</span><span class="lb">${l}${k==='fav'?`<em class="nfc2"${favs.size?'':' hidden'}>${favs.size}</em>`:''}</span></button>`).join('');
+ const navH=[['exp','compass',S.explorar],['mapa','map',S.mapa],['fav','heart',S.guardados]].map(([k,ic,l])=>`<button data-nav="${k}" class="${on===k?'on':''}"${on===k?' aria-current="page"':''}><span class="nico">${I(ic,22)}${k==='fav'?`<i class="nfc"${favs.size?'':' hidden'}>${favs.size}</i>`:''}</span><span class="lb">${l}${k==='fav'?`<em class="nfc2"${favs.size?'':' hidden'}>${favs.size}</em>`:''}</span></button>`).join('');
+ if(window._navH!==navH){window._navH=navH;$('nav').innerHTML=navH}
  setHdr();
 }
 function pintarLista(){
@@ -1394,7 +1395,7 @@ pintarLista=function(){
  if(tm!==antesT){            // "See all" opens (slides in from the right) or closes (back from the left)
   const dentro=tm&&!antesT,y=_destY;_destY=null;
   const entrar=()=>L.animate([{opacity:0,transform:`translateX(${dentro?'72px':'-48px'})`},{opacity:1,transform:'none'}],{duration:420,easing:'cubic-bezier(.32,.72,0,1)'});
-  const irY=()=>{if(y==null)return;const H=document.documentElement;H.style.overflow='hidden';scrollTo(0,y);requestAnimationFrame(()=>{H.style.overflow='';scrollTo(0,y)})};
+  const irY=()=>{if(y!=null)scrollTo(0,y)};
   if(y==null||Math.abs(scrollY-y)<60){_pintarLista();irY();entrar();return}
   // far down the page: fade out first, swap and jump while invisible, then slide in (no visible jump)
   const a=L.animate([{opacity:1},{opacity:0}],{duration:130,easing:'ease-in',fill:'forwards'});
