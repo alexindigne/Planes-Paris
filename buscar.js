@@ -45,7 +45,7 @@ const FUERA_TXT = /boulogne|saint-denis|montreuil|issy|vincennes|neuilly|levallo
 const enParisTxt = s => /\bparis\b/i.test(s || '') && !FUERA_TXT.test(s || '');
 const AGENDAS_DOM = [...SITIOS, 'timeout.com', 'parisjetaime.com', 'telerama.fr', 'eventbrite.', 'feverup.com', 'shotgun.live', 'dice.fm', 'ra.co', 'billetweb.fr', 'paris.fr', 'facebook.com'];
 const PISTAS = /que-faire|what-to-do|things-to-do|this-week|cette-semaine|week-?end|agenda|bons-plans|good-deals|sorties|pop-?up|ephemere|expositions?|exhibitions?|concerts?|guide|art-?week|art-basel|selection|idees|picks|lineup|events/i;
-const UA = 'Mozilla/5.0 (compatible; Planinparis/1.0; +https://alexindigne.github.io/Planes-Paris/)';
+const UA = 'Mozilla/5.0 (compatible; Planinparis/1.0; +https://planinparis.com/)';
 const limpia = s => String(s ?? '').replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+/g, ' ').trim();
 const norm = s => limpia(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
 const esImp = s => IMPRESCINDIBLES.some(k => norm(s).includes(norm(k)));
