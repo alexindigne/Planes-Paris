@@ -37,7 +37,7 @@ const enParis = e => {
   const ll = e.lat_lon;
   return !!ll && ll.lat > 48.815 && ll.lat < 48.903 && ll.lon > 2.224 && ll.lon < 2.47;
 };
-const UA = 'Mozilla/5.0 (compatible; Planinparis/1.0; +https://alexindigne.github.io/Planes-Paris/)';
+const UA = 'Mozilla/5.0 (compatible; Planinparis/1.0; +https://planinparis.com/)';
 const uso = { in: 0, out: 0 };
 const informe = { fotos: 0, fotosNo: 0, revaloradas: 0, fotosViejas: 0 };
 
