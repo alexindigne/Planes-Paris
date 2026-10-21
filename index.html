@@ -1232,12 +1232,14 @@ async function cargarComs(id){
 }
 
 // ===== NAVIGATION (?see=row, ?plan=id) =====
+let _yInicio=0,_destY=null;
+try{history.scrollRestoration='manual'}catch(_){}
 function ruta(){
  const u=new URLSearchParams(location.search);
  const k=u.get('see'),tema=TEMAS[k]?k:null;
  const dd=u.get('dia'),tdia=tema==='finde'&&/^\d{4}-\d\d-\d\d$/.test(dd||'')?dd:null;
  const li=(u.get('lista')||'').split(',').map(Number).filter(Boolean),lista=li.length?li:null;
- if(tema!==st.tema||tdia!==st.tdia||String(lista)!==String(st.lista)){st.tema=tema;st.tdia=tdia;st.lista=lista;pintar();scrollTo(0,0)}
+ if(tema!==st.tema||tdia!==st.tdia||String(lista)!==String(st.lista)){const entra=!st.tema&&!st.lista&&(tema||lista),sale=(st.tema||st.lista)&&!tema&&!lista;if(entra)_yInicio=scrollY;_destY=sale?_yInicio:0;st.tema=tema;st.tdia=tdia;st.lista=lista;pintar();if(_destY!=null){scrollTo(0,_destY);_destY=null}}
  const pid=parseInt(u.get('plan'),10)||null;
  if(pid&&st.cargado&&st.datos.some(p=>p.id===pid)){if(fichaId!==pid)abrirFicha(pid);const ok=pslug(st.datos.find(p=>p.id===pid));if(u.get('plan')!==ok){u.set('plan',ok);history.replaceState(history.state,'','?'+u.toString())}}
  else if(st.cargado||!pid)cerrarFicha();
@@ -1390,8 +1392,13 @@ pintarLista=function(){
    if(st.vista==='mapa'&&typeof mapa!=='undefined'&&mapa&&mapa.invalidateSize)setTimeout(()=>mapa.invalidateSize(),60)};
   return}
  if(tm!==antesT){            // "See all" opens (slides in from the right) or closes (back from the left)
-  _pintarLista();const dentro=tm&&!antesT;
-  L.animate([{opacity:0,transform:`translateX(${dentro?'72px':'-48px'})`},{opacity:1,transform:'none'}],{duration:420,easing:'cubic-bezier(.32,.72,0,1)'});
+  const dentro=tm&&!antesT,y=_destY;_destY=null;
+  const entrar=()=>L.animate([{opacity:0,transform:`translateX(${dentro?'72px':'-48px'})`},{opacity:1,transform:'none'}],{duration:420,easing:'cubic-bezier(.32,.72,0,1)'});
+  const irY=()=>{if(y==null)return;const H=document.documentElement;H.style.overflow='hidden';scrollTo(0,y);requestAnimationFrame(()=>{H.style.overflow='';scrollTo(0,y)})};
+  if(y==null||Math.abs(scrollY-y)<60){_pintarLista();irY();entrar();return}
+  // far down the page: fade out first, swap and jump while invisible, then slide in (no visible jump)
+  const a=L.animate([{opacity:1},{opacity:0}],{duration:130,easing:'ease-in',fill:'forwards'});
+  a.onfinish=()=>{_pintarLista();irY();a.cancel();entrar()};
   return}
  if(f!==antesF){            // a filter changed: quick fade out, new content fades in (Spotify-style)
   const a=L.animate([{opacity:1},{opacity:0}],{duration:120,easing:'ease-in',fill:'forwards'});
