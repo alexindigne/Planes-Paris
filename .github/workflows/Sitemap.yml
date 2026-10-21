@@ -1,0 +1,29 @@
+name: Sitemap for Google
+
+on:
+  schedule:
+    - cron: '17 6 * * *'   # every day, early morning
+  workflow_dispatch:        # "Run workflow" button
+
+permissions:
+  contents: write
+
+jobs:
+  sitemap:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: node sitemap.js
+      - name: Save sitemap.xml to the site
+        run: |
+          git config user.name "planinparis-bot"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add sitemap.xml
+          git diff --cached --quiet && echo "No changes" && exit 0
+          git commit -m "Update sitemap"
+          git pull --rebase
+          git push
