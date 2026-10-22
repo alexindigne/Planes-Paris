@@ -5,7 +5,7 @@
 <meta name="theme-color" content="#121212">
 <title>Planinparis</title>
 <meta name="description" content="The best plans in Paris, all in one place. Hand-picked every week so you never miss what's on.">
-<link rel="canonical" href="https://planinparis.com/">
+<script>(function(){var p=new URLSearchParams(location.search).get('plan'),l=document.createElement('link');l.rel='canonical';l.href='https://planinparis.com/'+(p?'?plan='+encodeURIComponent(p):'');document.head.appendChild(l)})()</script>
 <link rel="manifest" href="/manifest.json">
 <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -1212,7 +1212,7 @@ function seoPlan(p){
  let j=document.getElementById('ld-plan');if(!j){j=document.createElement('script');j.type='application/ld+json';j.id='ld-plan';document.head.appendChild(j)}
  j.textContent=JSON.stringify(ev);
 }
-function seoReset(){for(const sel in SEO0){const m=metaEl(sel);if(m)m.setAttribute(m.tagName==='LINK'?'href':'content',SEO0[sel])}const j=document.getElementById('ld-plan');if(j)j.remove()}
+function seoReset(){for(const sel in SEO0){const m=metaEl(sel);if(m)m.setAttribute(m.tagName==='LINK'?'href':'content',SEO0[sel])}const j=document.getElementById('ld-plan');if(j)j.remove();const c=metaEl('link[rel="canonical"]');if(c)c.href='https://planinparis.com/';const o=metaEl('meta[property="og:url"]');if(o)o.content='https://planinparis.com/'}
 function abrirFicha(id){
  const p=st.datos.find(x=>x.id===id);if(!p)return;
  if(fxMap){fxMap.remove();fxMap=null}
@@ -1259,13 +1259,15 @@ function sinRepetidos(arr){
  const jac=(A,B)=>{let i=0;for(const w of A)if(B.has(w))i++;return i/(A.size+B.size-i)};
  const vago=p=>!p.lugar||/^\s*(paris)?\s*(\d{1,2}\s*(e|er|eme|ème|th|st|nd|rd)?|750\d\d)?\s*(paris)?\s*$/i.test(String(p.lugar));
  const IMPW=new Set(IMP_EV.flatMap(k=>sinAc(k).replace(/[^a-z0-9]+/g,' ').split(' ')));
- const pref=(a,b)=>{const f=p=>sinAc(p.nombre).replace(/[^a-z0-9]+/g,' ').split(' ').filter(w=>w.length>2&&!STOP.has(w));const x=f(a),y=f(b);let i=0;while(i<x.length&&i<y.length&&x[i]===y[i])i++;return x.slice(0,i).filter(w=>!IMPW.has(w)).length};
- const mismo=(a,b,ta,tb)=>{if(!ta.size||!tb.size||!sol(a,b))return false;
+ const ACT=new Set(['visit','visits','visite','visites','guided','guidee','tour','tours','workshop','workshops','atelier','ateliers','talk','talks','conference','rencontre','screening','projection','concert','concerts','party','soiree','brunch','opening','vernissage','nocturne','late','night','musical','musicale','musicales','kids','enfants','performance','masterclass','dj','set','live']);
+ const cl=t=>new Set([...t].filter(w=>!/^\d+$/.test(w)&&!IMPW.has(w)));
+ // only OBVIOUS duplicates are hidden here (the robot asks the AI about the doubtful ones)
+ const mismo=(a,b,t0,u0)=>{if(!sol(a,b))return false;const ta=cl(t0),tb=cl(u0);if(!ta.size||!tb.size)return false;
   const fa=a.foto_original||a.foto,fb=b.foto_original||b.foto,fi=fa&&fb&&fk(fa)===fk(fb),d=a.lat!=null&&b.lat!=null?m(a,b):null,ca=cp(a.lugar),cb=cp(b.lugar);
   const[pe,gr]=ta.size<=tb.size?[ta,tb]:[tb,ta],cont=[...pe].every(w=>gr.has(w));
-  if((cont&&(pe.size>=2||(pe.size===gr.size&&[...pe][0].length>=6)))||jac(ta,tb)>=.8){
-   if(fi)return true;if(vago(a)||vago(b))return d==null?(!ca||!cb||ca===cb):d<2500;if(d!=null)return d<500;return!ca||!cb||ca===cb}
-  return pref(a,b)>=2&&(a.fecha_fin||'')===(b.fecha_fin||'')&&(fi||(d!=null?d<700:!!(ca&&ca===cb)))};
+  if(!((cont&&(pe.size>=2||(pe.size===gr.size&&[...pe][0].length>=6)))||jac(ta,tb)>=.8))return false;
+  if([...gr].some(w=>!pe.has(w)&&ACT.has(w)))return false;
+  if(fi)return true;if(vago(a)||vago(b))return d==null?(!ca||!cb||ca===cb):d<2500;if(d!=null)return d<500;return!ca||!cb||ca===cb};
  const val=p=>(p.imprescindible?50:0)+(+p.nota||0)*3+(p.foto?4:0)+(p.lat!=null?2:0)+(p.lugar&&!/^\s*paris\b/i.test(p.lugar)?3:0)+(p.horario?1:0)+Math.min(3,String(p.descripcion||'').length/300)+(Array.isArray(p.puntos)&&p.puntos.length?2:0);
  const T=arr.map(tk),fuera=new Set();
  for(let i=0;i<arr.length;i++){if(fuera.has(i))continue;for(let j=i+1;j<arr.length;j++){if(fuera.has(j))continue;
