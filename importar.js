@@ -100,7 +100,7 @@ WHAT GETS IN: dated plans many people would enjoy: temporary exhibitions, art fa
 OUR LINE (what we love most): brand pop-ups and activations, launches, temporary stores and cafés, showrooms and concept-store events; fashion, Fashion Week, streetwear, sneakers and street culture; art fairs, openings and vernissages; art, design, photography and temporary installations; DJ sets and parties (electronic, house, disco, hip-hop, R&B, alternative), listening sessions, vinyl, rooftops, afterworks and apéros with good music; vintage; food & drink with a concept; small or underground events with a great vibe and strong visual appeal.
 FAMOUS PLACES: skip the ordinary visit of tourist landmarks and permanent collections (Eiffel Tower, Louvre, Arc de Triomphe, Sacré-Cœur…). But a special dated event AT a famous place — a party or DJ set at the Eiffel Tower, a concert in a monument, a late opening, a light show, a one-off event in a palace or a museum — is NOT a tourist visit: it is welcome and often scores high.
 AVOID: regular restaurants and bars; standard tourist activities; generic lists; workshops, courses, talks, kids-only activities, admin services, regular sports, and anything that is mainly an advert.
-MUST-DOS: "imprescindible": true only for Paris's big events that everyone goes to and the city waits for every year, like ${IMPRESCINDIBLES.join(', ')}, or events of that scale.` + MUST_RULE;
+MUST-DOS: "imprescindible": true only for Paris's big events that everyone goes to and the city waits for every year, like ${IMPRESCINDIBLES.join(', ')}, or events of that scale — OR an exceptional, one-off brand moment that the whole city will talk about: a pop-up, store opening or activation by a major fashion or luxury house or a huge brand collab (e.g. a Miu Miu event, a big Zara collab pop-up, a Louis Vuitton or Nike flagship activation). Ordinary brand pop-ups, small launches and shop events are NOT must-dos.` + MUST_RULE;
 
 const SCORING = `SCORING: rate 5 criteria with 0, 1 or 2 each, using only facts from the source. Return them as "criterios": {"original":0-2,"ambiente":0-2,"encaje":0-2,"oportunidad":0-2,"calidad":0-2}.
 - original: is it different, something you wouldn't stumble upon by chance? 2 = an unusual idea, place or format; 1 = a good version of a familiar thing; 0 = generic or routine.
@@ -339,13 +339,15 @@ async function fotosPendientes(todosOD) {
 
 // ===== ADDRESSES: official French address database first, then OpenStreetMap for venue names =====
 const PARIS_CP = /^750(0[1-9]|1\d|20)$|^75116$/;
+// The city-centre point (Hôtel de Ville) is what many sites put when they don't know the address: never trust it
+const esCentro = (lat, lon) => Math.abs(lat - 48.8566) < 0.0012 && Math.abs(lon - 2.3522) < 0.0016;
 async function geoUna(q) {
   for (const base of ['https://data.geopf.fr/geocodage/search', 'https://api-adresse.data.gouv.fr/search/']) {
     try {
       const r = await fetch(base + '?' + new URLSearchParams({ q, limit: '1' }), { signal: AbortSignal.timeout(8000) });
       if (!r.ok) continue;
       const f = (await r.json()).features?.[0];
-      if (f && (f.properties?.score ?? 1) >= 0.5) return { lon: f.geometry.coordinates[0], lat: f.geometry.coordinates[1], cp: String(f.properties?.postcode || '') };
+      if (f && (f.properties?.score ?? 1) >= 0.5 && !['municipality', 'locality'].includes(f.properties?.type) && !esCentro(f.geometry.coordinates[1], f.geometry.coordinates[0])) return { lon: f.geometry.coordinates[0], lat: f.geometry.coordinates[1], cp: String(f.properties?.postcode || '') };
       return null;
     } catch (_) {}
   }
@@ -357,6 +359,7 @@ async function geoLugar(q) {
     if (!r.ok) return null;
     for (const f of (await r.json()).features || []) {
       const pr = f.properties || {}, cp = String(pr.postcode || '');
+      if (['city', 'county', 'state', 'district'].includes(pr.type) || esCentro(f.geometry.coordinates[1], f.geometry.coordinates[0])) continue;
       if (/^75\d{3}$/.test(cp) || (pr.city || '').toLowerCase() === 'paris') return { lon: f.geometry.coordinates[0], lat: f.geometry.coordinates[1], cp };
     }
   } catch (_) {}
@@ -454,6 +457,7 @@ async function main() {
       if (!ok) { desc.push({ fuente_id: d.id, fecha_fin: fin }); continue; }
       const finReal = fechas ? fechas[fechas.length - 1] : fin;
       let lat = e.lat_lon?.lat ?? null, lon = e.lat_lon?.lon ?? null;
+      if (lat != null && esCentro(lat, lon)) { lat = null; lon = null; }
       if (lat == null) { const g = await geoEvento(e); if (g) { lat = g.lat; lon = g.lon; } }
       const m = [];
       if (!seguras && !(ini && fin)) m.push('dates unclear');
