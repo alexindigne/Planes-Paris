@@ -45,12 +45,27 @@ a{color:var(--tx);font-size:14px}
 .gimg{display:inline-flex;align-items:center;font-size:13px;font-weight:600;margin-left:2px}
 .orden{display:flex;gap:6px;align-items:center;font-size:13px;color:var(--mu);margin-bottom:12px}
 .orden button.on{background:var(--tx);color:#fff;border-color:var(--tx)}
+/* Quick rating */
+.rq{background:var(--card);border-radius:18px;overflow:hidden;box-shadow:0 2px 10px #0001;transition:opacity .2s ease,transform .25s cubic-bezier(.32,.72,0,1)}
+.rq.sale{opacity:0;transform:translateX(-24px)}
+.rq .ph{height:300px;background:#e9e7e2;position:relative}
+.rq .ph img{width:100%;height:100%;object-fit:cover;display:block}
+.rq .ph span{position:absolute;left:12px;top:12px;background:#000a;color:#fff;font-size:12px;font-weight:600;padding:4px 9px;border-radius:8px}
+.rq .bd{padding:16px}
+.rq h2{font-size:20px;margin:0 0 4px;line-height:1.25}
+.rbtn{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:14px}
+.rbtn button{padding:12px 4px 10px;font-size:15px;font-weight:700;border-radius:12px;line-height:1.15}.rbtn button small{display:block;font-size:11px;font-weight:500;opacity:.6;margin-top:3px}.rbtn .fuera{color:var(--ko)}
+.rbtn .top{background:var(--tx);color:#fff;border-color:var(--tx)}
+.rbtn2{display:grid;grid-template-columns:2fr 1fr;gap:8px;margin-top:8px}
+.rbtn2 button{padding:12px 6px;font-size:14px;font-weight:600;border-radius:12px}
+.rbtn2 .must{background:#FF5A1F;color:#fff;border-color:#FF5A1F}
+.rprog{display:flex;justify-content:space-between;font-size:13px;color:var(--mu);margin:0 2px 10px}
 </style></head><body>
 <header><h1>Panel de revisión</h1><button id="salir" hidden>Salir</button></header>
 <main>
 <form id="login" hidden><input id="em" type="email" placeholder="Email" autocomplete="username" required><input id="pw" type="password" placeholder="Contraseña" autocomplete="current-password" required><button class="pri">Entrar</button><p id="err"></p></form>
 <div id="app" hidden>
-<div class="tabs"><button data-tab="pendiente" class="on">Pendientes</button><button data-tab="aprobado">Aprobados</button><button data-tab="sinfoto">Sin foto</button><button data-tab="reportes">Reportes</button><button data-tab="comentarios">Comentarios</button></div>
+<div class="tabs"><button data-tab="rapido">Valorar rápido</button><button data-tab="pendiente" class="on">Pendientes</button><button data-tab="aprobado">Aprobados</button><button data-tab="sinfoto">Sin foto</button><button data-tab="reportes">Reportes</button><button data-tab="comentarios">Comentarios</button></div>
 <div id="extra"></div><div id="lista"></div>
 </div></main>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -61,7 +76,7 @@ const db=supabase.createClient(URL_,KEY);
 const $=id=>document.getElementById(id);
 const e=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const cache=new Map();
-let tab='pendiente',orden='fecha';
+let tab='pendiente',orden='fecha',rq=[],ri=0,rHechas=0;
 async function iniciar(){
  const {data:{session}}=await db.auth.getSession();
  $('login').hidden=!!session;$('app').hidden=!session;$('salir').hidden=!session;
@@ -79,6 +94,12 @@ const fecha=p=>[...new Set([p.fecha_inicio,p.fecha_fin].filter(Boolean))].join('
 const est=n=>'★'.repeat(n)+'☆'.repeat(5-n);
 async function cargar(){
  $('lista').innerHTML='<p class="vacio">Cargando…</p>';$('extra').innerHTML='';cache.clear();
+ if(tab==='rapido'){
+  // Published plans you haven't rated yet, best AI score first (the ones that matter most for Must-dos)
+  const {data,error}=await db.from('planes').select('*').eq('estado','aprobado').is('nota_alex',null).order('nota',{ascending:false,nullsFirst:false}).limit(300);
+  if(error)return fallo(error);
+  rq=data;ri=0;rHechas=0;data.forEach(p=>cache.set(p.id,p));pintarRapido();return;
+ }
  if(tab==='reportes'){
   const {data,error}=await db.from('reportes').select('id,motivo,creado_en,planes(id,nombre,fuente_id,fecha_fin)').order('creado_en',{ascending:false});
   if(error)return fallo(error);
@@ -125,7 +146,7 @@ function tarjetaPlan(p){
   const dias=Array.isArray(p.fechas)&&p.fechas.length?'Días: '+p.fechas.slice(0,10).join(', ')+(p.fechas.length>10?'…':''):'Todos los días del rango';
   const c=p.criterios||{},tuya=p.nota_alex;
   return `<div class="card">${p.foto?`<div class="foto"><img src="${e(p.foto)}" alt="" loading="lazy" referrerpolicy="no-referrer">${p.foto_credito?`<small>Foto: ${e(p.foto_credito)}</small>`:''}<span class="fb"><button data-ponfoto="${p.id}">Cambiar foto</button><button class="rojo" data-sinfoto="${p.id}">Quitar</button></span></div>`:''}
-  ${p.motivo?`<div class="meta" style="color:var(--ko);font-weight:600">Pendiente por: ${e(p.motivo.replace('no photo','sin foto').replace('dates unclear','fechas dudosas').replace('address not verified','dirección sin verificar'))}</div>`:''}<div class="meta">${p.estado==='aprobado'?'Publicado':'Pendiente'} · ${p.imprescindible?'IMPRESCINDIBLE · ':''}${e(p.categoria||'sin categoría')} · ${e(p.precio)} · ${e(p.fuente||'')}</div>
+  ${p.motivo?`<div class="meta" style="color:var(--ko);font-weight:600">Pendiente por: ${e(p.motivo.replace('no photo','sin foto').replace('dates unclear','fechas dudosas').replace('address not verified','dirección sin verificar').replace('rated out','lo quitaste tú'))}</div>`:''}<div class="meta">${p.estado==='aprobado'?'Publicado':'Pendiente'} · ${p.imprescindible?'IMPRESCINDIBLE · ':''}${e(p.categoria||'sin categoría')} · ${e(p.precio)} · ${e(p.fuente||'')}</div>
   <h2>${e(p.nombre)}</h2>${p.subtitulo?`<p class="sub2">${e(p.subtitulo)}</p>`:''}
   <div class="nota"><b>${p.nota??'–'}</b><span class="meta">${tuya!=null?'nota tuya':p.criterios?'nota de la IA':'nota antigua (se recalculará)'}</span></div>
   ${p.criterios?`<div class="crit">${CRIT.map(([k,l])=>`<span>${l} ${c[k]??0}/2</span>`).join('')}</div>`:''}${p.por_que?`<p class="pq">${e(p.por_que)}</p>`:''}
@@ -137,6 +158,32 @@ function tarjetaPlan(p){
   <button class="${p.imprescindible?'':'negro'}" data-imp="${p.id}" data-v="${p.imprescindible?0:1}">${p.imprescindible?'Quitar imprescindible':'Marcar imprescindible'}</button>
   ${p.foto?'':`<button class="negro" data-ponfoto="${p.id}">Poner foto</button>`}<button class="rojo" data-desc="${p.id}">✕ Descartar</button></div></div>`;
 }
+// ===== Quick rating: one plan at a time, one tap =====
+function pintarRapido(){
+ const p=rq[ri];
+ if(!p){$('lista').innerHTML=`<p class="vacio">${rHechas?`¡Hecho! Has valorado ${rHechas} plan${rHechas>1?'es':''}. La IA usará tus notas en la próxima búsqueda.`:'No queda ningún plan publicado sin tu nota.'}</p>`;return}
+ const lugar=String(p.lugar||'').split(',')[0];
+ $('lista').innerHTML=`<div class="rprog"><span>${ri+1} de ${rq.length}</span><span>Nota IA: <b>${p.nota??'–'}</b></span></div>
+ <div class="rq" id="rqc"><div class="ph">${p.foto?`<img src="${e(p.foto)}" alt="" referrerpolicy="no-referrer">`:''}<span>${e(p.categoria||'otro')}</span></div>
+ <div class="bd"><h2>${e(p.nombre)}</h2>${p.subtitulo?`<p class="sub2">${e(p.subtitulo)}</p>`:''}
+ <div class="meta">${e(lugar)} · ${e(fecha(p))} · ${e(p.precio||'')}</div>
+ ${p.por_que?`<p class="pq">${e(p.por_que)}</p>`:''}
+ <div class="rbtn"><button data-rq="3" class="fuera">Fuera<small>se quita</small></button><button data-rq="5">Normal<small>5</small></button><button data-rq="7">Bueno<small>7</small></button><button data-rq="9" class="top">Top<small>9</small></button></div>
+ <div class="rbtn2"><button data-rq="10" class="must">Must-do</button><button data-rq="skip">Saltar</button></div></div></div>`;
+}
+async function valorarRapido(v,b){
+ const p=rq[ri];if(!p)return;
+ if(v!=='skip'){
+  document.querySelectorAll('[data-rq]').forEach(x=>x.disabled=true);
+  const n=+v,cambio={nota:n,nota_alex:n};if(n===10)cambio.imprescindible=true;if(n<5){cambio.estado='pendiente';cambio.motivo='rated out';cambio.imprescindible=false}
+  const {error}=await db.from('planes').update(cambio).eq('id',p.id);if(error)return fallo(error);
+  const r=await db.from('ejemplos').upsert({fuente_id:p.fuente_id||('id-'+p.id),nombre:p.nombre,subtitulo:p.subtitulo,categoria:p.categoria,nota:n},{onConflict:'fuente_id'});
+  if(r.error)return fallo(r.error);
+  rHechas++;
+ }
+ const c=$('rqc');if(c)c.classList.add('sale');
+ setTimeout(()=>{ri++;pintarRapido();window.scrollTo({top:0})},200);
+}
 async function descartar(id){
  const p=cache.get(id);
  if(p&&p.fuente_id){const {error}=await db.from('descartados').upsert({fuente_id:p.fuente_id,fecha_fin:p.fecha_fin});if(error)return fallo(error)}
@@ -146,6 +193,7 @@ async function descartar(id){
 }
 document.addEventListener('click',async ev=>{
  const b=ev.target.closest('button');if(!b)return;const ds=b.dataset;
+ if(ds.rq){valorarRapido(ds.rq,b);return}
  if(ds.tab){tab=ds.tab;if(tab==='sinfoto')orden='nota';document.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('on',x===b));cargar()}
  else if(ds.est){b.disabled=true;const {error}=await db.from('planes').update({estado:ds.est}).eq('id',+ds.id);error?fallo(error):cargar()}
  else if(ds.imp){b.disabled=true;const {error}=await db.from('planes').update({imprescindible:ds.v==='1'}).eq('id',+ds.imp);error?fallo(error):cargar()}
