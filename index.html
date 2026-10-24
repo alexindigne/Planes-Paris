@@ -710,10 +710,18 @@ html{scroll-padding-top:var(--hdrsp,132px)}
 .mcards{transition:opacity .16s ease}
 .mcards.fade{opacity:0}
 .mct .walk{color:var(--tx);font-weight:700}
-.pin.spd{width:16px;height:16px;cursor:pointer;transform:translate(var(--dx),var(--dy));animation:spd .38s cubic-bezier(.34,1.4,.64,1) both}
-@keyframes spd{from{transform:translate(0,0) scale(.3);opacity:0}}
-.yo{position:relative;width:22px;height:22px;pointer-events:none}
-.yo i{position:absolute;inset:0;border-radius:50%;background:#0A84FF;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.45)}
+.mct .aqui{color:var(--tx);font-weight:700}
+.yask{position:absolute;left:12px;right:12px;bottom:112px;z-index:520;padding:18px 18px 14px;border-radius:20px;background:rgba(28,28,28,.97);border:.5px solid rgba(255,255,255,.12);box-shadow:0 14px 40px rgba(0,0,0,.55);color:#fff;
+ opacity:0;transform:translateY(14px);transition:opacity .25s ease,transform .3s cubic-bezier(.32,.72,0,1)}
+.yask.on{opacity:1;transform:none}
+.yask b{display:block;font-size:16px;font-weight:800;letter-spacing:-.01em}
+.yask p{margin:6px 0 14px;font-size:13.5px;line-height:1.45;color:#a8a8a8}
+.yask .ic{display:inline-block;padding:0 5px;border-radius:5px;background:#333;color:#fff;font-weight:700;font-size:12px}
+.yask div{display:flex;justify-content:flex-end;gap:8px}
+.yask button{height:40px;padding:0 16px;border-radius:20px;border:.5px solid rgba(255,255,255,.2);background:transparent;color:#fff;font:inherit;font-size:14px;font-weight:700}
+.yask button.pri{background:#fff;color:#121212;border-color:#fff}
+.yo{position:relative;width:24px;height:24px;pointer-events:none}
+.yo i{position:absolute;inset:0;border-radius:50%;background:#0A84FF;border:3.5px solid #fff;box-shadow:0 0 0 9px rgba(10,132,255,.22),0 2px 10px rgba(0,0,0,.5)}
 .yo::before{content:"";position:absolute;inset:-16px;border-radius:50%;background:rgba(10,132,255,.28);animation:yo 2.2s ease-out infinite}
 @keyframes yo{from{transform:scale(.35);opacity:1}to{transform:scale(1.25);opacity:0}}
 .myo{position:absolute;right:12px;bottom:116px;z-index:510;width:46px;height:46px;border-radius:50%;padding:0;display:flex;align-items:center;justify-content:center;
@@ -731,7 +739,7 @@ html{scroll-padding-top:var(--hdrsp,132px)}
  <div class="row" id="rapidos"></div>
  <div class="row" id="pills"></div>
 </div></header>
-<main><div id="lista"></div><div id="mapa-w" hidden><div id="mapa"></div><div class="mtop" id="mtop"></div><button class="minfo" data-minfo="1" aria-label="Map credits">i</button><div class="mcred" id="mcred" hidden>© <a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a> · © <a href="https://www.openmaptiles.org/" target="_blank" rel="noopener">OpenMapTiles</a> · Data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors · <a href="https://leafletjs.com" target="_blank" rel="noopener">MapLibre</a> · <a href="https://leafletjs.com" target="_blank" rel="noopener">Leaflet</a></div><button class="myo" id="myo" aria-label="Show plans near me"><svg viewBox="0 0 24 24"><path d="M3 11l18-8-8 18-2-8z"/></svg></button><div class="mcards" id="mcards"></div></div></main>
+<main><div id="lista"></div><div id="mapa-w" hidden><div id="mapa"></div><div class="mtop" id="mtop"></div><button class="minfo" data-minfo="1" aria-label="Map credits">i</button><div class="mcred" id="mcred" hidden>© <a href="https://openfreemap.org" target="_blank" rel="noopener">OpenFreeMap</a> · © <a href="https://www.openmaptiles.org/" target="_blank" rel="noopener">OpenMapTiles</a> · Data © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors · <a href="https://leafletjs.com" target="_blank" rel="noopener">MapLibre</a> · <a href="https://leafletjs.com" target="_blank" rel="noopener">Leaflet</a></div><button class="myo" id="myo" aria-label="Show plans near me"><svg viewBox="0 0 24 24"><path d="M3 11l18-8-8 18-2-8z"/></svg></button><div class="yask" id="yask" role="dialog" aria-live="polite" hidden></div><div class="mcards" id="mcards"></div></div></main>
 <nav class="bn" aria-label="Main"><span class="nbg" aria-hidden="true"></span><div class="in" id="nav"></div></nav>
 <div id="ficha" aria-hidden="true"><div id="fx-top"><div class="vid" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><b class="tinte"></b></div></div><div id="fx-sc"><div id="fx"></div></div><div id="fbar"></div></div>
 <div id="velo"></div>
@@ -1126,11 +1134,13 @@ const base=m=>L.maplibreGL({style:document.documentElement.classList.contains('d
 const pines={};
 const pinDe=p=>{const c=CAT[p.categoria]||CAT.otro;return pines[c]||(pines[c]=L.divIcon({className:'',html:`<div class="pin" style="background:${c}"></div>`,iconSize:[22,22],iconAnchor:[11,11],popupAnchor:[0,-12]}))};
 let fxMap,full;
-// ===== MAIN MAP (MapLibre native: GPU-drawn pins + clusters) =====
+// ===== MAIN MAP (MapLibre native: GPU-drawn pins, no clusters) =====
 const MSTYLE=()=>document.documentElement.classList.contains('dark')?'https://tiles.openfreemap.org/styles/dark':'https://tiles.openfreemap.org/styles/positron';
-let mapa=null,mListo=false,mPend=null,mLista=[],mById={},mSel=null,mSelMk=null,mSpider=[],mTimer=null,mMovida=false,mAuto=false,mCardsIds='';
-let mVisto=false,yo=null,yoMk=null,yoWatch=null;
+let mapa=null,mListo=false,mPend=null,mLista=[],mById={},mGrupo={},mSel=null,mSelMk=null,mTimer=null,mMovida=false,mAuto=false,mCardsIds='',mVisto=false;
+let yo=null,yoMk=null,yoWatch=null;
+const ls={get:k=>{try{return localStorage.getItem(k)}catch(_){return null}},set:(k,v)=>{try{localStorage.setItem(k,v)}catch(_){}}};
 const dist=(a,b,c,d)=>{const R=6371e3,r=Math.PI/180,x=(d-b)*r*Math.cos((a+c)/2*r),y=(c-a)*r;return Math.sqrt(x*x+y*y)*R};
+const ease=t=>1-Math.pow(1-t,3);
 function aPie(p){
  if(!yo)return '';
  const m=dist(yo.lat,yo.lon,p.lat,p.lon)*1.25,min=Math.max(1,Math.round(m/80));
@@ -1142,27 +1152,30 @@ function mapaChips(n){
   +Object.keys(CAT).filter(k=>k!=='otro').map(k=>chip(st.cats.has(k),`data-cat="${k}"`,S.cats[k],CAT[k])).join('');
 }
 function cartaMapa(p){
- const fe=fechas(p),ap=aPie(p);
- return `<a class="mc" href="?plan=${pslug(p)}" data-plan="${p.id}" data-mc="${p.id}">${foto(p,26,false)}<span class="mct"><b>${e(tx(p,'nombre'))}</b><small>${e([fe,precioTx(p)].filter(Boolean).join(' · '))}</small><small>${ap?`<span class="walk">${e(ap)}</span> · `:''}${e(zona(p))}</small></span></a>`;
+ const fe=fechas(p),ap=aPie(p),g=mGrupo[p.id],aqui=g&&g.length>1?` · <span class="aqui">${g.length} plans here</span>`:'';
+ return `<a class="mc" href="?plan=${pslug(p)}" data-plan="${p.id}" data-mc="${p.id}">${foto(p,26,false)}<span class="mct"><b>${e(tx(p,'nombre'))}</b><small>${e([fe,precioTx(p)].filter(Boolean).join(' · '))}</small><small>${ap?`<span class="walk">${e(ap)}</span> · `:''}${e(zona(p))}${aqui}</small></span></a>`;
 }
-// Cards = plans in view, nearest first (to the plan you tapped, to you, or to the centre)
-function pintarCartas(primero){
+// Cards = plans in view, nearest first. `lead` = ids that go first (the plan or address you tapped)
+function pintarCartas(lead){
  if(!mapa)return;
- const b=mapa.getBounds(),ref=primero?mById[primero]:null,c=mapa.getCenter();
- const o=ref?{lat:ref.lat,lon:ref.lon}:yo&&b.contains([yo.lon,yo.lat])?yo:{lat:c.lat,lon:c.lng};
- let l=mLista.filter(p=>b.contains([p.lon,p.lat]));
- if(ref&&!l.includes(ref))l.push(ref);
- l=l.map(p=>[dist(o.lat,o.lon,p.lat,p.lon),p]).sort((x,y)=>x[0]-y[0]).slice(0,40).map(x=>x[1]);
- if(ref){l=l.filter(p=>p.id!==primero);l.unshift(ref)}
- const ids=l.map(p=>p.id).join(',');
- if(ids===mCardsIds)return;
+ const b=mapa.getBounds(),c=mapa.getCenter(),first=lead&&lead.length?mById[lead[0]]:null;
+ const o=first?{lat:first.lat,lon:first.lon}:yo&&b.contains([yo.lon,yo.lat])?yo:{lat:c.lat,lon:c.lng};
+ const top=(lead||[]).map(i=>mById[i]).filter(Boolean),ids0=new Set(top.map(p=>p.id));
+ const rest=mLista.filter(p=>!ids0.has(p.id)&&b.contains([p.dx,p.dy])).map(p=>[dist(o.lat,o.lon,p.lat,p.lon),p]).sort((x,y)=>x[0]-y[0]).slice(0,40).map(x=>x[1]);
+ const l=top.concat(rest),ids=l.map(p=>p.id).join(',');
+ if(ids===mCardsIds){if(mSel!=null)marcarCarta(mSel);return}
  mCardsIds=ids;
  const box=$('mcards');box.classList.add('fade');
  setTimeout(()=>{box.innerHTML=l.map(cartaMapa).join('');box.scrollLeft=0;box.classList.remove('fade');if(mSel!=null)marcarCarta(mSel)},140);
 }
 function marcarCarta(id){document.querySelectorAll('#mcards .mc').forEach(c=>c.classList.toggle('on',+c.dataset.mc===id))}
-function quitarSpider(){mSpider.forEach(m=>m.remove());mSpider=[]}
+function irACarta(id){
+ const k=document.querySelector(`#mcards [data-mc="${id}"]`);if(!k)return false;
+ marcarCarta(id);mMovida=true;k.parentNode.scrollTo({left:k.offsetLeft-16,behavior:'smooth'});setTimeout(()=>mMovida=false,600);return true;
+}
 function abrirPlan(id){const a=document.querySelector(`#mcards [data-mc="${id}"]`);if(a)a.click()}
+function quitarSel(){if(mSelMk){mSelMk.remove();mSelMk=null}mSel=null;if(mapa&&mapa.getLayer('pts'))mapa.setFilter('pts',null)}
+// Select a plan: photo pin, its card first, map glides (zoom stays as it is)
 function marcar(id,desdePin){
  const p=mById[id];if(!p||!mapa)return;
  mSel=id;
@@ -1170,71 +1183,77 @@ function marcar(id,desdePin){
  const c=CAT[p.categoria]||CAT.otro,f=fotoOk(p),el=document.createElement('div');
  el.innerHTML=`<div class="pin sel" style="--c:${c}">${f?`<img src="${e(f)}" alt="" referrerpolicy="no-referrer" onerror="this.remove()">`:''}</div>`;
  el.addEventListener('click',ev=>{ev.stopPropagation();abrirPlan(id)});
- mSelMk=new maplibregl.Marker({element:el}).setLngLat([p.lon,p.lat]).addTo(mapa);
- if(mapa.getLayer('pts'))mapa.setFilter('pts',['all',['!',['has','point_count']],['!=',['get','id'],id]]);
- mAuto=true;mapa.easeTo({center:[p.lon,p.lat],offset:[0,-70],duration:500,easing:t=>1-Math.pow(1-t,3)});
- if(desdePin){
-  if(!document.querySelector(`#mcards [data-mc="${id}"]`)){mCardsIds='';pintarCartas(id);return}
-  marcarCarta(id);
-  const k=document.querySelector(`#mcards [data-mc="${id}"]`);
-  if(k){mMovida=true;k.parentNode.scrollTo({left:k.offsetLeft-16,behavior:'smooth'});setTimeout(()=>mMovida=false,600)}
- }else marcarCarta(id);
+ mSelMk=new maplibregl.Marker({element:el}).setLngLat([p.dx,p.dy]).addTo(mapa);
+ mapa.setFilter('pts',['!=',['get','id'],id]);
+ mAuto=true;mapa.easeTo({center:[p.dx,p.dy],offset:[0,-70],duration:500,easing:ease});
+ if(desdePin&&!irACarta(id)){mCardsIds='';pintarCartas([id]);setTimeout(()=>marcarCarta(id),200)}
+ else if(!desdePin)marcarCarta(id);
 }
-// One feature per address; plans sharing an address are stacked (n>1)
-function geo(l){const g={};l.forEach(p=>{const k=(+p.lat).toFixed(5)+','+(+p.lon).toFixed(5);(g[k]=g[k]||[]).push(p)});
- return{type:'FeatureCollection',features:Object.values(g).map(a=>({type:'Feature',geometry:{type:'Point',coordinates:[a[0].lon,a[0].lat]},properties:{id:a[0].id,ids:a.map(p=>p.id).join(','),n:a.length,c:CAT[a[0].categoria]||CAT.otro}}))}}
-// Plans at the same address fan out around the point
-function spider(lngLat,l){
- quitarSpider();
- const pos=[];let ring=0,left=l.length;
- while(left>0){const cap=ring===0?8:8+ring*7,k=Math.min(cap,left),r=40+ring*30;for(let j=0;j<k;j++){const a=(2*Math.PI*j)/k-Math.PI/2+ring*0.35;pos.push([Math.cos(a)*r,Math.sin(a)*r])}left-=k;ring++}
- l.forEach((p,i)=>{
-  const el=document.createElement('div'),pin=document.createElement('div');
-  pin.className='pin spd';pin.style.background=CAT[p.categoria]||CAT.otro;pin.style.setProperty('--dx',Math.round(pos[i][0])+'px');pin.style.setProperty('--dy',Math.round(pos[i][1])+'px');pin.style.animationDelay=Math.min(i*18,300)+'ms';el.appendChild(pin);
-  pin.addEventListener('click',ev=>{ev.stopPropagation();marcar(p.id,true)});
-  mSpider.push(new maplibregl.Marker({element:el}).setLngLat(lngLat).addTo(mapa));
+// Plans at the same address sit on a small ring around it, so every dot is one real, tappable plan.
+// From far away they read as one dot; tapping it glides in until they separate.
+function prepararPuntos(l){
+ const g={};l.forEach(p=>{const k=(+p.lat).toFixed(5)+','+(+p.lon).toFixed(5);(g[k]=g[k]||[]).push(p)});
+ mGrupo={};
+ Object.values(g).forEach(a=>{
+  const ids=a.map(p=>p.id);
+  a.forEach((p,i)=>{
+   mGrupo[p.id]=ids;
+   if(a.length===1){p.dx=+p.lon;p.dy=+p.lat;return}
+   const r=Math.min(14+a.length*3,34),ang=(2*Math.PI*i)/a.length-Math.PI/2;
+   p.dy=+p.lat+(r*Math.sin(ang))/111320;p.dx=+p.lon+(r*Math.cos(ang))/(111320*Math.cos(p.lat*Math.PI/180));
+  });
  });
- mCardsIds=l.map(p=>p.id).join(',');
- const box=$('mcards');box.innerHTML=l.map(cartaMapa).join('');box.scrollLeft=0;
 }
+function geo(l){return{type:'FeatureCollection',features:l.map(p=>({type:'Feature',geometry:{type:'Point',coordinates:[p.dx,p.dy]},properties:{id:p.id,c:CAT[p.categoria]||CAT.otro}}))}}
 function crearMapa(){
- mapa=new maplibregl.Map({container:'mapa',style:MSTYLE(),center:[2.3522,48.8566],zoom:11.5,attributionControl:false,dragRotate:false,pitchWithRotate:false,maxZoom:19,fadeDuration:200});
+ mapa=new maplibregl.Map({container:'mapa',style:MSTYLE(),center:[2.343,48.861],zoom:12.2,attributionControl:false,dragRotate:false,pitchWithRotate:false,maxZoom:19,fadeDuration:200});
  mapa.touchZoomRotate.disableRotation();
  mapa.on('load',()=>{
-  mapa.addSource('planes',{type:'geojson',data:geo([]),cluster:true,clusterRadius:72,clusterMaxZoom:13,clusterProperties:{total:['+',['get','n']]},maxzoom:19});
-  mapa.addLayer({id:'cl',type:'circle',source:'planes',filter:['has','point_count'],paint:{
-   'circle-color':'rgba(30,30,30,0.94)','circle-stroke-color':'rgba(255,255,255,0.32)','circle-stroke-width':1.5,
-   'circle-radius':['step',['get','total'],16,10,19,30,23,100,27]}});
-  mapa.addLayer({id:'cln',type:'symbol',source:'planes',filter:['has','point_count'],layout:{
-   'text-field':['to-string',['get','total']],'text-font':['Noto Sans Bold'],'text-size':12.5,'text-allow-overlap':true},paint:{'text-color':'#ffffff'}});
-  mapa.addLayer({id:'ptsr',type:'circle',source:'planes',filter:['all',['!',['has','point_count']],['>',['get','n'],1]],paint:{
-   'circle-color':'rgba(0,0,0,0)','circle-radius':13,'circle-stroke-color':'rgba(255,255,255,0.55)','circle-stroke-width':1.5}});
-  mapa.addLayer({id:'pts',type:'circle',source:'planes',filter:['!',['has','point_count']],paint:{
-   'circle-color':['get','c'],'circle-radius':7,'circle-stroke-color':'#ffffff','circle-stroke-width':2.5}});
-  mapa.on('click','cl',ev=>{
-   const f=ev.features[0],src=mapa.getSource('planes'),id=f.properties.cluster_id,ll=f.geometry.coordinates;
-   // open the whole zone at once: zoom straight to its plans, past the cluster level
-   src.getClusterLeaves(id,1000,0).then(h=>{
-    const bb=new maplibregl.LngLatBounds();h.forEach(x=>bb.extend(x.geometry.coordinates));
-    const cam=mapa.cameraForBounds(bb,{padding:{top:90,bottom:170,left:40,right:40}})||{center:ll,zoom:14};
-    quitarSpider();mapa.easeTo({center:cam.center,zoom:Math.min(17,Math.max(cam.zoom,14.2)),duration:700,easing:t=>1-Math.pow(1-t,3)});
-   });
-  });
+  mapa.addSource('planes',{type:'geojson',data:geo([])});
+  mapa.addLayer({id:'pts',type:'circle',source:'planes',paint:{
+   'circle-color':['get','c'],
+   'circle-radius':['interpolate',['linear'],['zoom'],11,3.5,13,5,15,7,17,8.5],
+   'circle-stroke-color':'#ffffff',
+   'circle-stroke-width':['interpolate',['linear'],['zoom'],11,1,14,2,17,2.5]}});
   mapa.on('click','pts',ev=>{
-   const f=ev.features[0],pr=f.properties;
-   if(pr.n>1){const l=String(pr.ids).split(',').map(Number).map(i=>mById[i]).filter(Boolean);mAuto=true;mapa.easeTo({center:f.geometry.coordinates,zoom:Math.max(mapa.getZoom(),16),offset:[0,-60],duration:450});spider(f.geometry.coordinates,l)}
-   else marcar(pr.id,true);
+   const id=ev.features[0].properties.id,g=mGrupo[id]||[id];
+   if(g.length>1&&mapa.getZoom()<16.8){
+    // a shared address: glide in until each plan has its own dot, show those plans first
+    const p=mById[id],cx=g.reduce((s,i)=>s+mById[i].dx,0)/g.length,cy=g.reduce((s,i)=>s+mById[i].dy,0)/g.length;
+    quitarSel();mCardsIds='';mAuto=true;
+    mapa.easeTo({center:[cx,cy],zoom:17.6,offset:[0,-70],duration:750,easing:ease});
+    pintarCartas(g);
+   }else marcar(id,true);
   });
-  ['cl','pts'].forEach(k=>{mapa.on('mouseenter',k,()=>mapa.getCanvas().style.cursor='pointer');mapa.on('mouseleave',k,()=>mapa.getCanvas().style.cursor='')});
-  mapa.on('dragstart',()=>quitarSpider());
-  mapa.on('zoomstart',ev=>{if(ev.originalEvent)quitarSpider()});
-  mapa.on('moveend',()=>{if(mAuto){mAuto=false;return}if(mSpider.length)return;clearTimeout(mTimer);mTimer=setTimeout(()=>pintarCartas(),120)});
+  mapa.on('mouseenter','pts',()=>mapa.getCanvas().style.cursor='pointer');
+  mapa.on('mouseleave','pts',()=>mapa.getCanvas().style.cursor='');
+  mapa.on('moveend',()=>{if(mAuto){mAuto=false;return}if(mSel!=null){const q=mById[mSel];if(q&&!mapa.getBounds().contains([q.dx,q.dy]))quitarSel()}clearTimeout(mTimer);mTimer=setTimeout(()=>pintarCartas(mSel!=null?[mSel]:null),120)});
   mListo=true;if(mPend){const l=mPend;mPend=null;pintarMapa(l)}
-  if(navigator.permissions)navigator.permissions.query({name:'geolocation'}).then(r=>{if(r.state==='granted')ubicarme(true)}).catch(()=>{});
+  arrancarYo();
  });
  $('mcards').addEventListener('scroll',()=>{if(mMovida)return;clearTimeout(mTimer);mTimer=setTimeout(()=>{const box=$('mcards'),mid=box.scrollLeft+box.clientWidth/2;let best=null,bd=1e9;
   box.querySelectorAll('.mc').forEach(c=>{const d=Math.abs(c.offsetLeft+c.offsetWidth/2-mid);if(d<bd){bd=d;best=+c.dataset.mc}});if(best!=null&&best!==mSel)marcar(best,false)},140)},{passive:true});
- $('myo').addEventListener('click',()=>ubicarme(false));
+ $('myo').addEventListener('click',()=>{if(yo){mAuto=false;mapa.flyTo({center:[yo.lon,yo.lat],zoom:Math.max(mapa.getZoom(),14.5),offset:[0,-50],duration:900,essential:true})}else if(ls.get('pp_yo')==='1')ubicarme(false);else verAviso('ask')});
+ $('yask').addEventListener('click',ev=>{
+  const b=ev.target.closest('button');if(!b)return;
+  if(b.dataset.y==='ok'){ocultarAviso();ubicarme(false)}
+  else{ocultarAviso();if(b.dataset.y==='no')ls.set('pp_yo_no','1')}
+ });
+}
+// ----- Location -----
+const AVISOS={
+ ask:`<b>See plans near you</b><p>Turn on location to see how many minutes away each plan is. It stays on your phone.</p><div><button data-y="no">Not now</button><button data-y="ok" class="pri">Allow location</button></div>`,
+ off:`<b>Location is off for this site</b><p>On iPhone: Settings → Privacy &amp; Security → Location Services → Safari Websites → While Using. Then tap <span class="ic">aA</span> in the address bar → Website Settings → Location → Allow.</p><div><button data-y="x" class="pri">Got it</button></div>`,
+ fail:`<b>Couldn’t find you</b><p>Check that Location Services is on and try again.</p><div><button data-y="x">Close</button><button data-y="ok" class="pri">Try again</button></div>`
+};
+let yaT=null;
+function verAviso(k){clearTimeout(yaT);const a=$('yask');a.innerHTML=AVISOS[k];a.hidden=false;requestAnimationFrame(()=>requestAnimationFrame(()=>a.classList.add('on')))}
+function ocultarAviso(){clearTimeout(yaT);const a=$('yask');a.classList.remove('on');yaT=setTimeout(()=>a.hidden=true,250)}
+function arrancarYo(){
+ // Already allowed before → locate straight away. First visit → offer once, our own way.
+ const go=()=>{if(ls.get('pp_yo')==='1')ubicarme(true);else if(ls.get('pp_yo_no')!=='1')setTimeout(()=>verAviso('ask'),700)};
+ if(navigator.permissions&&navigator.permissions.query)navigator.permissions.query({name:'geolocation'}).then(r=>{if(r.state==='granted')ubicarme(true);else if(r.state==='denied'){ls.set('pp_yo','0')}else go()}).catch(go);
+ else go();
 }
 function ponYo(){
  if(!mapa||!yo)return;
@@ -1242,16 +1261,19 @@ function ponYo(){
  else yoMk.setLngLat([yo.lon,yo.lat]);
 }
 function ubicarme(silencioso){
- if(!navigator.geolocation||!mapa){if(!silencioso)toast('Location not available');return}
+ if(!navigator.geolocation||!mapa){if(!silencioso)verAviso('fail');return}
  const b=$('myo');b.classList.add('busy');
  navigator.geolocation.getCurrentPosition(pos=>{
-  b.classList.remove('busy');b.classList.add('on');
-  yo={lat:pos.coords.latitude,lon:pos.coords.longitude};ponYo();mCardsIds='';
-  quitarSpider();mAuto=false;
-  mapa.flyTo({center:[yo.lon,yo.lat],zoom:Math.max(mapa.getZoom(),14.5),offset:[0,-50],duration:silencioso?0:1100,essential:true});
-  if(silencioso)setTimeout(()=>pintarCartas(),50);
-  if(yoWatch==null)yoWatch=navigator.geolocation.watchPosition(q=>{yo={lat:q.coords.latitude,lon:q.coords.longitude};ponYo()},()=>{},{enableHighAccuracy:true,maximumAge:15000});
- },err=>{b.classList.remove('busy');if(!silencioso)toast(err.code===1?'Allow location to see plans near you':'Couldn’t find your location')},{enableHighAccuracy:true,timeout:10000,maximumAge:60000});
+  b.classList.remove('busy');b.classList.add('on');ls.set('pp_yo','1');
+  const nuevo=!yo;yo={lat:pos.coords.latitude,lon:pos.coords.longitude};ponYo();mCardsIds='';
+  if(nuevo){mAuto=false;mapa.flyTo({center:[yo.lon,yo.lat],zoom:Math.max(mapa.getZoom(),14.5),offset:[0,-50],duration:silencioso?0:1100,essential:true})}
+  if(silencioso)setTimeout(()=>pintarCartas(mSel!=null?[mSel]:null),50);
+  if(yoWatch==null)yoWatch=navigator.geolocation.watchPosition(q=>{yo={lat:q.coords.latitude,lon:q.coords.longitude};ponYo()},()=>{},{enableHighAccuracy:true,maximumAge:20000});
+ },err=>{
+  b.classList.remove('busy');
+  if(err.code===1){ls.set('pp_yo','0');if(!silencioso)verAviso('off')}
+  else if(!silencioso)verAviso('fail');
+ },{enableHighAccuracy:false,timeout:12000,maximumAge:300000});
 }
 function pararYo(){if(yoWatch!=null){navigator.geolocation.clearWatch(yoWatch);yoWatch=null}}
 function pintarMapa(l){
@@ -1260,11 +1282,12 @@ function pintarMapa(l){
  setTimeout(()=>mapa.resize(),50);
  if(!mListo){mPend=l;return}
  if(yo&&yoWatch==null)ubicarme(true);
- quitarSpider();if(mSelMk){mSelMk.remove();mSelMk=null}mSel=null;
+ quitarSel();
  // skip plans that only got the city-centre fallback point (no real address match)
  mLista=l.filter(p=>p.lat!=null&&p.lon!=null&&!(Math.abs(p.lat-48.85658)<1e-5&&Math.abs(p.lon-2.35183)<1e-5));
+ prepararPuntos(mLista);
  mById={};mLista.forEach(p=>mById[p.id]=p);
- mapa.getSource('planes').setData(geo(mLista));mapa.setFilter('pts',['!',['has','point_count']]);
+ mapa.getSource('planes').setData(geo(mLista));
  $('mtop').innerHTML=mapaChips(mLista.length);
  mCardsIds='';
  if(!yo&&!mVisto){mVisto=true;mAuto=true;mapa.jumpTo({center:[2.343,48.861],zoom:12.2})}
